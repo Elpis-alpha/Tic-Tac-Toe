@@ -1164,26 +1164,19 @@ const BoardCtrl = (function () {
 
     ]
 
-    for (let i = 0; i < winningConditions.length; i++) {
-      const item = winningConditions[i];
+    // Find every completed line on a copy first. Marking cells in place
+    // would hide a second line that shares a cell with the first one.
+    const bp = board.boardPoints.slice()
 
-      const bp = board.boardPoints
+    winningConditions
+      .filter(item => bp[item[0]] !== '' && bp[item[0]] === bp[item[1]] && bp[item[1]] === bp[item[2]])
+      .forEach((item) => {
 
-      if (bp[item[0]] === bp[item[1]] && bp[item[1]] === bp[item[2]]) {
+        const mark = bp[item[0]] === 'X' ? 'E' : 'D'
 
-        if (bp[item[2]] !== "") {
+        item.forEach((index) => { board.boardPoints[index] = mark })
 
-          board.boardPoints[item[0]] = bp[item[2]] === 'X' ? 'E' : 'D'
-
-          board.boardPoints[item[1]] = bp[item[2]] === 'X' ? 'E' : 'D'
-
-          board.boardPoints[item[2]] = bp[item[2]] === 'X' ? 'E' : 'D'
-
-        }
-
-      }
-
-    }
+      })
 
     board.boardPoints.forEach((item, index) => {
       if (winner === 'draw') { board.boardPoints[index] = 'F' }
