@@ -3042,6 +3042,11 @@ const BoardCtrl = (function () {
 
     board = verifyBoard(board)
 
+    // A finished game is normally replaced 2s after it ends. If the page was
+    // reloaded inside that window the timer was lost, so start the next game
+    // now, the same way. Its result is already counted in the stats.
+    if (isGameOver(board)) { board = verifyBoard(newBoard()) }
+
     UserCtrl.setData('board', board)
 
     fillBoard()
