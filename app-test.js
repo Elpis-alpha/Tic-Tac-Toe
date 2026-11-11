@@ -540,6 +540,13 @@ const UICtrl = (function () {
 // API Controller
 const BoardCtrl = (function () {
 
+  // Every row, column and diagonal, as board indexes (row-major)
+  const WIN_LINES = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
+  ]
+
   const newBoard = function () {
 
     const board = {
@@ -962,12 +969,6 @@ const BoardCtrl = (function () {
   }
 
   // Strikes a line through every completed row, column or diagonal
-  const WIN_LINES = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8],
-    [0, 3, 6], [1, 4, 7], [2, 5, 8],
-    [0, 4, 8], [2, 4, 6]
-  ]
-
   const updateStrike = function (board) {
 
     const strike = UICtrl.UIVars.boardStrike
@@ -979,7 +980,7 @@ const BoardCtrl = (function () {
     const lines = WIN_LINES.filter((line) =>
       line.every(i => points[i] === 'E') || line.every(i => points[i] === 'D'))
 
-    const key = lines.map(line => line.join('')).join('|')
+    const key = lines.map(line => points[line[0]] + line.join('')).join('|')
 
     // Only redraw when the result changes so the stroke does not replay
     if (strike.dataset.key === key) { return }
@@ -1013,44 +1014,12 @@ const BoardCtrl = (function () {
 
     const theBoard = board.boardPoints
 
-    const winningConditions = [
+    const winLine = WIN_LINES.find(line => theBoard[line[0]] !== '' &&
+      theBoard[line[0]] === theBoard[line[1]] && theBoard[line[1]] === theBoard[line[2]])
 
-      // Horisontal Conditions
-      [(theBoard[0] === theBoard[3] && theBoard[3] === theBoard[6] && theBoard[6] !== ''), theBoard[6]],
+    const won = winLine !== undefined
 
-      [(theBoard[1] === theBoard[4] && theBoard[4] === theBoard[7] && theBoard[7] !== ''), theBoard[7]],
-
-      [(theBoard[2] === theBoard[5] && theBoard[5] === theBoard[8] && theBoard[8] !== ''), theBoard[8]],
-
-
-      // Vertical Conditions
-      [(theBoard[0] === theBoard[1] && theBoard[1] === theBoard[2] && theBoard[2] !== ''), theBoard[2]],
-
-      [(theBoard[3] === theBoard[4] && theBoard[4] === theBoard[5] && theBoard[5] !== ''), theBoard[5]],
-
-      [(theBoard[6] === theBoard[7] && theBoard[7] === theBoard[8] && theBoard[8] !== ''), theBoard[8]],
-
-
-      // Diaginal Conditions
-      [(theBoard[0] === theBoard[4] && theBoard[4] === theBoard[8] && theBoard[8] !== ''), theBoard[8]],
-
-      [(theBoard[2] === theBoard[4] && theBoard[4] === theBoard[6] && theBoard[6] !== ''), theBoard[6]],
-
-    ]
-
-    let won = false; let winner = ''
-
-    winningConditions.forEach((item) => {
-
-      if (item[0]) {
-
-        won = true
-
-        winner = item[1]
-
-      }
-
-    })
+    let winner = won ? theBoard[winLine[0]] : ''
 
     if (won) {
 
@@ -1150,29 +1119,11 @@ const BoardCtrl = (function () {
         break;
     }
 
-    const winningConditions = [
-
-      // Horisontal Conditions
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-
-      // Vertical Conditions
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-
-      // Diaginal Conditions
-      [0, 4, 8],
-      [2, 4, 6],
-
-    ]
-
     // Find every completed line on a copy first. Marking cells in place
     // would hide a second line that shares a cell with the first one.
     const bp = board.boardPoints.slice()
 
-    winningConditions
+    WIN_LINES
       .filter(item => bp[item[0]] !== '' && bp[item[0]] === bp[item[1]] && bp[item[1]] === bp[item[2]])
       .forEach((item) => {
 
@@ -3523,7 +3474,7 @@ const App = (function (UICtrl, BoardCtrl,
 
     statsTable[0].children[2].innerText = UserCtrl.getData('xname')
 
-    statsTable[0].children[3].innerText = 'Draw'
+    statsTable[0].children[3].innerText = 'Draws'
 
     Array.from(statsTable[1].children).forEach((item, index) => {
 
