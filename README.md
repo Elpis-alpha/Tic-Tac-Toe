@@ -28,7 +28,7 @@ python3 -m http.server 8000
 | --- | --- |
 | `index.html`, `style.css`, `app.js` | The game |
 | `test.html`, `app-test.js` | Test copy. Same code as the game, but uses a separate `user-test` local storage key, shows the move order in `#board-place`, and is `noindex`. Keep it in sync with `app.js` and `index.html` when you change them. |
-| `assets/` | Favicons, app icons and the social share image |
+| `assets/` | Favicons, app icons, the social share image and the self-hosted Recursive font (`fonts/`, SIL OFL) |
 | `site.webmanifest`, `robots.txt`, `sitemap.xml` | SEO and install metadata |
 | `google*.html` | Google Search Console verification files. Keep them. |
 | `docs/` | Planning notes |
