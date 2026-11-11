@@ -502,6 +502,8 @@ const UICtrl = (function () {
     boardPlace: findElement('#board-place'),
     boardCover: findElement('.board-cover'),
     gameStatus: findElement('#game-status'),
+    gameHolder: findElement('.game-holder'),
+    boardStrike: findElement('.board-strike'),
   }
 
   return {
@@ -805,6 +807,8 @@ const BoardCtrl = (function () {
 
     updateStatus(board)
 
+    updateStrike(board)
+
     UICtrl.UIVars.boardPlace.innerHTML = JSON.stringify(
       UserCtrl.getData('board').playingPoints.map(item => item[2]))
 
@@ -844,7 +848,7 @@ const BoardCtrl = (function () {
     `
 
     UICtrl.UIVars.boardDraws.innerHTML = `
-      <span class="who"><span class="who-name">Draw</span></span><span class="score">${total[2]}</span>
+      <span class="who"><span class="who-name">Draws</span></span><span class="score">${total[2]}</span>
     `
 
     const over = isGameOver(board)
@@ -852,6 +856,14 @@ const BoardCtrl = (function () {
     const nameTurn = board.turn === board.name
 
     UICtrl.UIVars.boardName.classList.toggle('is-turn', !over && nameTurn)
+
+    UICtrl.UIVars.boardName.classList.toggle('side-x', letter === 'X')
+
+    UICtrl.UIVars.boardName.classList.toggle('side-o', letter === 'O')
+
+    UICtrl.UIVars.boardXname.classList.toggle('side-x', xletter === 'X')
+
+    UICtrl.UIVars.boardXname.classList.toggle('side-o', xletter === 'O')
 
     UICtrl.UIVars.boardXname.classList.toggle('is-turn', !over && !nameTurn)
 
@@ -890,9 +902,17 @@ const BoardCtrl = (function () {
 
     let over = true
 
+    let turnLetter = ''
+
+    let result = ''
+
+    let waiting = false
+
     if (board.boardPoints.includes('F')) {
 
       text = 'The match ends in a tie'
+
+      result = 'draw'
 
     } else if (board.boardPoints.includes('E') || board.boardPoints.includes('D')) {
 
@@ -902,13 +922,19 @@ const BoardCtrl = (function () {
 
       text = `${winner} (${winLetter}) wins`
 
+      result = winLetter
+
     } else {
 
       over = false
 
       const letter = board.turn === board.name ? board.playerLetter : (board.playerLetter === 'X' ? 'O' : 'X')
 
-      text = board.numbPlay === 'one' && board.turn === board.xname
+      turnLetter = letter
+
+      waiting = board.numbPlay === 'one' && board.turn === board.xname
+
+      text = waiting
         ? `${board.xname} is thinking...`
         : `${board.turn}'s turn (${letter})`
 
@@ -919,6 +945,65 @@ const BoardCtrl = (function () {
     status.classList.toggle('is-over', over)
 
     UICtrl.UIVars.boardBody.parentElement.classList.toggle('is-over', over)
+
+    // Lets the stylesheet colour the board, status and hover preview
+    const holder = UICtrl.UIVars.gameHolder
+
+    if (holder) {
+
+      holder.dataset.turn = turnLetter
+
+      holder.dataset.result = result
+
+      holder.toggleAttribute('data-waiting', waiting)
+
+    }
+
+  }
+
+  // Strikes a line through every completed row, column or diagonal
+  const WIN_LINES = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
+  ]
+
+  const updateStrike = function (board) {
+
+    const strike = UICtrl.UIVars.boardStrike
+
+    if (!strike) { return }
+
+    const points = board.boardPoints
+
+    const lines = WIN_LINES.filter((line) =>
+      line.every(i => points[i] === 'E') || line.every(i => points[i] === 'D'))
+
+    const key = lines.map(line => line.join('')).join('|')
+
+    // Only redraw when the result changes so the stroke does not replay
+    if (strike.dataset.key === key) { return }
+
+    strike.dataset.key = key
+
+    // Board cells are 100 units square in the overlay's 300x300 viewBox
+    const centre = (i) => [(i % 3) * 100 + 50, Math.floor(i / 3) * 100 + 50]
+
+    strike.innerHTML = lines.map((line) => {
+
+      const [x1, y1] = centre(line[0])
+
+      const [x2, y2] = centre(line[2])
+
+      const dx = (x2 - x1) * 0.2
+
+      const dy = (y2 - y1) * 0.2
+
+      const letter = points[line[0]] === 'E' ? 'x' : 'o'
+
+      return `<line class="strike strike-${letter}" pathLength="1" x1="${x1 - dx}" y1="${y1 - dy}" x2="${x2 + dx}" y2="${y2 + dy}" />`
+
+    }).join('')
 
   }
 
@@ -3029,23 +3114,16 @@ const BoardCtrl = (function () {
 
   const boardVars = {
 
-    emptySocket: `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 352 512"><path></path></svg>`,
+    emptySocket: `<svg viewBox="0 0 100 100" aria-hidden="true"></svg>`,
 
-    xSocket: `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 352 512">
-      <path
-        d="M242.72 256l100.07-100.07c12.28-12.28 12.28-32.19 0-44.48l-22.24-22.24c-12.28-12.28-32.19-12.28-44.48 0L176 189.28 75.93 89.21c-12.28-12.28-32.19-12.28-44.48 0L9.21 111.45c-12.28 12.28-12.28 32.19 0 44.48L109.28 256 9.21 356.07c-12.28 12.28-12.28 32.19 0 44.48l22.24 22.24c12.28 12.28 32.2 12.28 44.48 0L176 322.72l100.07 100.07c12.28 12.28 32.2 12.28 44.48 0l22.24-22.24c12.28-12.28 12.28-32.19 0-44.48L242.72 256z" />
-    </svg>
+    xSocket: `<svg viewBox="0 0 100 100" aria-hidden="true">
+      <path class="stroke" pathLength="1" d="M25 24 L76 77" />
+      <path class="stroke stroke-2" pathLength="1" d="M76 23 L24 76" />
+    </svg>`,
 
-    `,
-
-    oSocket: `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-      <path
-        d="M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8zm0 448c-110.5 0-200-89.5-200-200S145.5 56 256 56s200 89.5 200 200-89.5 200-200 200z" />
-    </svg>
-    `,
+    oSocket: `<svg viewBox="0 0 100 100" aria-hidden="true">
+      <path class="stroke" pathLength="1" d="M50 19 A31 31 0 1 1 49.99 19" />
+    </svg>`,
 
   }
 
