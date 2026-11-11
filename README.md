@@ -31,7 +31,7 @@ python3 -m http.server 8000
 | `assets/` | Favicons, app icons, the social share image and the self-hosted Recursive font (`fonts/`, SIL OFL) |
 | `site.webmanifest`, `robots.txt`, `sitemap.xml` | SEO and install metadata |
 | `google*.html` | Google Search Console verification files. Keep them. |
-| `docs/` | Planning notes |
+| `docs/` | Planning notes, and `og-image.html`, the source of the share image (the regenerate command is in its header comment) |
 | `CNAME` | Custom domain for GitHub Pages |
 
 ## Deploy

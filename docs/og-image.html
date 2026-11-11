@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Share image source</title>
+<meta name="robots" content="noindex">
+<!--
+  Source for assets/og-image.png (1200x630). To regenerate, from the repo root:
+    python3 -m http.server 8000
+    google-chrome --headless --hide-scrollbars --window-size=1200,630 \
+      --screenshot=assets/og-image.png http://localhost:8000/docs/og-image.html
+-->
+<style>
+  @font-face {
+    font-family: "Recursive";
+    font-weight: 400 900;
+    font-display: block;
+    src: url("../assets/fonts/recursive-latin.woff2") format("woff2");
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; background: #172030; overflow: hidden; }
+  body {
+    font-family: "Recursive", sans-serif;
+    color: #e9edf4;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    align-items: center;
+    gap: 48px;
+    padding: 0 92px 0 88px;
+  }
+  .copy { display: flex; flex-direction: column; gap: 28px; }
+  h1 {
+    white-space: nowrap;
+    font-size: 104px;
+    font-weight: 850;
+    font-variation-settings: "CASL" 1;
+    line-height: 0.95;
+    letter-spacing: -0.015em;
+  }
+  p {
+    font-size: 31px;
+    line-height: 1.35;
+    color: #9aa6bb;
+  }
+  .url {
+    margin-top: 26px;
+    font-size: 26px;
+    font-weight: 600;
+    color: #e9edf4;
+    opacity: 0.75;
+  }
+  svg { width: 380px; height: 380px; overflow: visible; }
+</style>
+</head>
+<body>
+  <div class="copy">
+    <h1>Tic Tac Toe</h1>
+    <p>Play free in your browser,<br>against the computer or a friend.</p>
+    <div class="url">tic-tac-toe.elpis.cc</div>
+  </div>
+  <svg viewBox="0 0 300 300" fill="none" stroke-linecap="round">
+    <g stroke="#55647f" stroke-width="3.5">
+      <path d="M101 9 C99 90 102 205 99 291" />
+      <path d="M199 8 C201 105 198 195 201 292" />
+      <path d="M9 100 C105 98 195 102 291 99" />
+      <path d="M8 201 C100 199 205 202 292 200" />
+    </g>
+    <!-- cells are 100 units; marks use the game's 100x100 mark geometry -->
+    <g stroke-width="8">
+      <g stroke="#5ec8ff">
+        <path d="M25 24 L76 77 M76 23 L24 76" />
+        <path transform="translate(100 100)" d="M25 24 L76 77 M76 23 L24 76" />
+        <path transform="translate(200 200)" d="M25 24 L76 77 M76 23 L24 76" />
+      </g>
+      <g stroke="#ffad5c">
+        <circle cx="150" cy="50" r="31" />
+        <circle cx="50" cy="150" r="31" />
+        <circle cx="250" cy="150" r="31" />
+      </g>
+    </g>
+    <line x1="30" y1="30" x2="270" y2="270" stroke="#5ec8ff" stroke-width="7" />
+  </svg>
+</body>
+</html>
