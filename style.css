@@ -453,7 +453,7 @@ svg {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0 1rem 2rem;
+  padding: 0 1rem 1rem;
 }
 
 .after-site-topper {
@@ -1005,4 +1005,11 @@ svg {
   font-family: ui-monospace, "Courier New", monospace;
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+/* Game over: keep the final position visible, dim the cells that did not win. */
+.tic-toe-board table.is-over td.i-am-x svg,
+.tic-toe-board table.is-over td.i-am-o svg {
+  opacity: 0.35;
+  animation: none;
 }

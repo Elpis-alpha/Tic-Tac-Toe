@@ -914,6 +914,8 @@ const BoardCtrl = (function () {
 
     status.classList.toggle('is-over', over)
 
+    UICtrl.UIVars.boardBody.parentElement.classList.toggle('is-over', over)
+
   }
 
   const checkForWin = function () {
@@ -1099,7 +1101,6 @@ const BoardCtrl = (function () {
     }
 
     board.boardPoints.forEach((item, index) => {
-      if (item !== 'E' && item !== 'D') { board.boardPoints[index] = '' }
       if (winner === 'draw') { board.boardPoints[index] = 'F' }
     })
 
@@ -1271,6 +1272,11 @@ const BoardCtrl = (function () {
 
 
     }
+
+
+    ;[UICtrl.UIVars.boardUndo, UICtrl.UIVars.boardRedo].forEach((btn) => {
+      btn.setAttribute('aria-disabled', btn.classList.contains('hide'))
+    })
 
   }
 
