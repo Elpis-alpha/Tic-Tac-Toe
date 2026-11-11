@@ -560,7 +560,7 @@ svg {
 }
 
 .game-status.is-over {
-  color: var(--success);
+  color: var(--text);
 }
 
 /* Board */
@@ -844,7 +844,7 @@ svg {
 
 .small-message-holder {
   position: fixed;
-  top: calc(var(--header-h) + 0.75rem);
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
   z-index: 720;
@@ -854,7 +854,7 @@ svg {
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-0.75rem);
+  transform: translateY(0.75rem);
   transition: opacity 0.25s, transform 0.3s var(--ease), visibility 0s linear 0.3s;
 }
 

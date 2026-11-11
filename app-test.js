@@ -3530,7 +3530,6 @@ const App = (function (UICtrl, BoardCtrl,
 
       loadInit()
 
-      console.log('Application is successfully running...')
 
     }
   }
