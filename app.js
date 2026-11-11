@@ -1,3 +1,10 @@
+// Escape user supplied text before it is placed in innerHTML
+const escapeHtml = function (text) {
+  return String(text).replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]))
+}
+
 // Storage Controller
 const StorageCtrl = (function () {
 
@@ -369,6 +376,10 @@ const UICtrl = (function () {
 
     addClass(UIVars.messageHolder, 'show')
 
+    const firstField = UIVars.message.querySelector('input, button')
+
+    if (firstField) { firstField.focus() } else { UIVars.message.focus() }
+
   }
 
   const removeMessage = function () {
@@ -377,15 +388,20 @@ const UICtrl = (function () {
 
   }
 
+  let smallMessageTimer = null
+
   const sendSmallMessage = function (message, time) {
 
-    UIVars.smallMessage.innerHTML = message
+    UIVars.smallMessage.textContent = message
 
     addClass(UIVars.smallMessageHolder, 'show')
 
+    // A newer message must not be closed by an older message's timer
+    clearTimeout(smallMessageTimer)
+
     if (time) {
 
-      setTimeout(() => {
+      smallMessageTimer = setTimeout(() => {
         removeSmallMessage()
       }, time);
 
@@ -484,6 +500,7 @@ const UICtrl = (function () {
     boardXname: findElement('.board-xname'),
     boardDraws: findElement('.board-draws'),
     boardCover: findElement('.board-cover'),
+    gameStatus: findElement('#game-status'),
   }
 
   return {
@@ -566,8 +583,6 @@ const BoardCtrl = (function () {
         let firstmove = UserCtrl.getData('first move')
 
         if (UserCtrl.getData('first move') === 'XO') {
-
-          console.log(UserCtrl.getData('board').hasOwnProperty('firstMove'));
 
           if (UserCtrl.getData('board').hasOwnProperty('firstMove')) {
 
@@ -783,17 +798,11 @@ const BoardCtrl = (function () {
 
     });
 
-    UICtrl.UIVars.boardName.innerHTML = `
-      ${board.name}<span>${UserCtrl.getData('stat total')[0]}</span>
-    `
+    updateScoreboard(board)
 
-    UICtrl.UIVars.boardXname.innerHTML = `
-      ${board.xname}<span>${UserCtrl.getData('stat total')[1]}</span>
-    `
+    updateCellLabels(board)
 
-    UICtrl.UIVars.boardDraws.innerHTML = `
-      Draw<span>${UserCtrl.getData('stat total')[2]}</span>
-    `
+    updateStatus(board)
 
     UICtrl.addClass(UICtrl.UIVars.boardCover, 'cover')
 
@@ -804,6 +813,106 @@ const BoardCtrl = (function () {
     }, 700);
 
     redoUndoStatus()
+
+  }
+
+  // Scoreboard, turn highlight, accessible labels and status line
+  const letterChip = function (letter) {
+
+    return `<span class="letter letter-${letter.toLowerCase()}" aria-hidden="true">${letter}</span>`
+
+  }
+
+  const updateScoreboard = function (board) {
+
+    const letter = board.playerLetter === 'O' ? 'O' : 'X'
+
+    const xletter = letter === 'X' ? 'O' : 'X'
+
+    const total = UserCtrl.getData('stat total')
+
+    UICtrl.UIVars.boardName.innerHTML = `
+      <span class="who">${letterChip(letter)}<span class="who-name">${escapeHtml(board.name)}</span></span><span class="score">${total[0]}</span>
+    `
+
+    UICtrl.UIVars.boardXname.innerHTML = `
+      <span class="who">${letterChip(xletter)}<span class="who-name">${escapeHtml(board.xname)}</span></span><span class="score">${total[1]}</span>
+    `
+
+    UICtrl.UIVars.boardDraws.innerHTML = `
+      <span class="who"><span class="who-name">Draw</span></span><span class="score">${total[2]}</span>
+    `
+
+    const over = isGameOver(board)
+
+    const nameTurn = board.turn === board.name
+
+    UICtrl.UIVars.boardName.classList.toggle('is-turn', !over && nameTurn)
+
+    UICtrl.UIVars.boardXname.classList.toggle('is-turn', !over && !nameTurn)
+
+  }
+
+  const isGameOver = function (board) {
+
+    return board.boardPoints.some(item => ['E', 'D', 'F'].includes(item))
+
+  }
+
+  const updateCellLabels = function (board) {
+
+    const states = { '': 'empty', X: 'X', O: 'O', E: 'X, winning cell', D: 'O, winning cell', F: 'draw' }
+
+    getUIBoard().forEach((cell, index) => {
+
+      const state = states[board.boardPoints[index]] || 'empty'
+
+      cell.setAttribute('aria-label',
+        `Row ${Math.floor(index / 3) + 1}, column ${(index % 3) + 1}: ${state}`)
+
+      cell.setAttribute('aria-disabled', board.boardPoints[index] !== '' || isGameOver(board))
+
+    })
+
+  }
+
+  const updateStatus = function (board) {
+
+    const status = UICtrl.UIVars.gameStatus
+
+    if (!status) { return }
+
+    let text = ''
+
+    let over = true
+
+    if (board.boardPoints.includes('F')) {
+
+      text = 'The match ends in a tie'
+
+    } else if (board.boardPoints.includes('E') || board.boardPoints.includes('D')) {
+
+      const winLetter = board.boardPoints.includes('E') ? 'X' : 'O'
+
+      const winner = board.playerLetter === winLetter ? board.name : board.xname
+
+      text = `${winner} (${winLetter}) wins`
+
+    } else {
+
+      over = false
+
+      const letter = board.turn === board.name ? board.playerLetter : (board.playerLetter === 'X' ? 'O' : 'X')
+
+      text = board.numbPlay === 'one' && board.turn === board.xname
+        ? `${board.xname} is thinking...`
+        : `${board.turn}'s turn (${letter})`
+
+    }
+
+    status.textContent = text
+
+    status.classList.toggle('is-over', over)
 
   }
 
@@ -1056,7 +1165,7 @@ const BoardCtrl = (function () {
 
         if (board.numbPlay === 'one') {
 
-          if (board.difficulty === 'eask') {
+          if (board.difficulty === 'easy') {
 
             message = `Unfortunately, you have lost`
 
@@ -1407,9 +1516,28 @@ const BoardCtrl = (function () {
 
     getUIBoard().forEach((item, index) => {
 
+      item.setAttribute('tabindex', '0')
+
+      item.setAttribute('role', 'button')
+
+      item.addEventListener('keydown', (e) => {
+
+        if (e.key === 'Enter' || e.key === ' ') {
+
+          e.preventDefault()
+
+          // Keyboard input must respect the same animation lock as the mouse
+          if (!UICtrl.UIVars.boardCover.classList.contains('cover')) { item.click() }
+
+        }
+
+      })
+
       item.addEventListener('click', (e) => {
 
         const board = UserCtrl.getData('board')
+
+        if (board.won) { return }
 
         if (board.boardPoints[index] === '') {
 
@@ -2927,43 +3055,56 @@ const App = (function (UICtrl, BoardCtrl,
 
   const loadEventListeners = function () {
 
-    UICtrl.UIVars.navOpener.addEventListener('click', () => {
+    UICtrl.UIVars.navOpener.addEventListener('click', openSettings)
 
-      fillAllSettings()
-
-      fillAllStats()
-
-      UICtrl.addClass(UICtrl.UIVars.nav, 'show-sett')
-
-    })
-
-    UICtrl.UIVars.navCloser.addEventListener('click', () => {
-
-      UICtrl.addClass(UICtrl.UIVars.nav, 'hide-sett')
-
-      setTimeout(() => {
-
-        UICtrl.removeClass(UICtrl.UIVars.nav, 'hide-sett')
-
-        UICtrl.removeClass(UICtrl.UIVars.nav, 'show-sett')
-
-      }, 1000);
-
-    })
+    UICtrl.UIVars.navCloser.addEventListener('click', closeSettings)
 
     UICtrl.UIVars.navBlur.addEventListener('click', (e) => {
 
       if (e.target.classList.contains('site-settings-holder')) {
 
-        UICtrl.addClass(UICtrl.UIVars.nav, 'hide-sett')
+        closeSettings()
 
-        setTimeout(() => {
+      }
 
-          UICtrl.removeClass(UICtrl.UIVars.nav, 'hide-sett')
+    })
 
-          UICtrl.removeClass(UICtrl.UIVars.nav, 'show-sett')
+    document.addEventListener('keydown', (e) => {
 
-        }, 1000);
+      if (e.key === 'Escape' && settingsOpen()) {
+
+        closeSettings()
+
+      }
+
+      // Keep Tab inside the settings drawer while it is open
+      if (e.key === 'Tab' && settingsOpen()) {
+
+        const focusable = Array.from(UICtrl.UIVars.navBlur.querySelectorAll('button, input'))
+
+        const first = focusable[0]
+
+        const last = focusable[focusable.length - 1]
+
+        if (!UICtrl.UIVars.navBlur.contains(document.activeElement)) {
+
+          e.preventDefault()
+
+          first.focus()
+
+        } else if (e.shiftKey && document.activeElement === first) {
+
+          e.preventDefault()
+
+          last.focus()
+
+        } else if (!e.shiftKey && document.activeElement === last) {
+
+          e.preventDefault()
+
+          first.focus()
+
+        }
 
       }
 
@@ -3004,11 +3145,19 @@ const App = (function (UICtrl, BoardCtrl,
 
       firstMove = firstMove.map(item => item.lastElementChild)
 
-      if (name !== '' && xname !== '') {
+      if (name.trim() === '' || xname.trim() === '') {
 
-        UserCtrl.setData('name', name)
+        UICtrl.sendSmallMessage(`Name fields can't be empty`, 2000)
 
-        UserCtrl.setData('xname', xname)
+      } else if (name.trim().toLowerCase() === xname.trim().toLowerCase()) {
+
+        UICtrl.sendSmallMessage(`Player and opponent names must be different`, 2500)
+
+      } else {
+
+        UserCtrl.setData('name', name.trim())
+
+        UserCtrl.setData('xname', xname.trim())
 
         playerLetter.forEach(item => {
 
@@ -3071,7 +3220,52 @@ const App = (function (UICtrl, BoardCtrl,
       fillAllStats()
 
       BoardCtrl.fillBoard()
+
+      UICtrl.sendSmallMessage('Statistics have been reset', 1500)
     })
+
+  }
+
+  const SETTINGS_ANIMATION = 250
+
+  const settingsOpen = function () {
+
+    return UICtrl.UIVars.nav.classList.contains('show-sett') &&
+      !UICtrl.UIVars.nav.classList.contains('hide-sett')
+
+  }
+
+  const openSettings = function () {
+
+    fillAllSettings()
+
+    fillAllStats()
+
+    UICtrl.addClass(UICtrl.UIVars.nav, 'show-sett')
+
+    UICtrl.UIVars.navOpener.setAttribute('aria-expanded', 'true')
+
+    UICtrl.UIVars.navCloser.focus()
+
+  }
+
+  const closeSettings = function () {
+
+    if (!settingsOpen()) { return }
+
+    UICtrl.addClass(UICtrl.UIVars.nav, 'hide-sett')
+
+    UICtrl.UIVars.navOpener.setAttribute('aria-expanded', 'false')
+
+    setTimeout(() => {
+
+      UICtrl.removeClass(UICtrl.UIVars.nav, 'hide-sett')
+
+      UICtrl.removeClass(UICtrl.UIVars.nav, 'show-sett')
+
+      UICtrl.UIVars.navOpener.focus()
+
+    }, SETTINGS_ANIMATION);
 
   }
 
@@ -3081,11 +3275,18 @@ const App = (function (UICtrl, BoardCtrl,
 
       UICtrl.sendMessage(`
       <form class="begin-xtr-form">
-      <p style="padding-bottom:.4rem">Welcome to the ultimate Tic Tac Toe <br></p>
-      <input type="text" required id="begin-xtr-name" placeholder="Your Name"> <br>
-      <input type="text" required id="begin-xtr-xame" placeholder="Opponent Name"><br>
-      <input type="submit" style="margin-top:.4rem; padding: .2rem .4rem;" ><br>
-      <small style="padding-bottom:.4rem">Note: we use your browsers local storage to store your data. <br>Click submit to grant permission</small>
+        <h2>Welcome to Tic Tac Toe</h2>
+        <p class="lead">Who is playing today?</p>
+        <div class="field">
+          <label for="begin-xtr-name">Your name</label>
+          <input type="text" required id="begin-xtr-name" placeholder="Your Name" maxlength="16" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="begin-xtr-xame">Opponent name</label>
+          <input type="text" required id="begin-xtr-xame" placeholder="Opponent Name" maxlength="16" autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-primary">Start playing</button>
+        <small>We use your browser's local storage to save your settings and stats. Starting the game grants that permission.</small>
       </form>
       `)
 
@@ -3094,11 +3295,15 @@ const App = (function (UICtrl, BoardCtrl,
 
           e.preventDefault()
 
-          const name = UICtrl.findElement('#begin-xtr-name').value
+          const name = UICtrl.findElement('#begin-xtr-name').value.trim()
 
-          const xname = UICtrl.findElement('#begin-xtr-xame').value
+          const xname = UICtrl.findElement('#begin-xtr-xame').value.trim()
 
-          if (name !== '' && xname !== '') {
+          if (name.toLowerCase() === xname.toLowerCase() && name !== '') {
+
+            UICtrl.sendSmallMessage(`Player and opponent names must be different`, 2500)
+
+          } else if (name !== '' && xname !== '') {
 
             const data = {
               name: name,
@@ -3135,7 +3340,7 @@ const App = (function (UICtrl, BoardCtrl,
 
           } else {
 
-            UICtrl.sendSmallMessage(`Name fields can't be empty`)
+            UICtrl.sendSmallMessage(`Name fields can't be empty`, 2000)
 
           }
 
