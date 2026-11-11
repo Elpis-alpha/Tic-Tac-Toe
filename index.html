@@ -2,69 +2,114 @@
 <html lang="en">
 
 <head>
-
   <meta charset="UTF-8">
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <meta name="description" content="Have fun with Tic Tac Toe created by Elpis">
-
-  <meta name="keywords" content="Elpis, Tic Tac Toe, naught and crosses, play tic tac toe, game, elpis tic tac toe">
-
+  <title>Tic Tac Toe by Elpis | Play Noughts and Crosses Online</title>
+  <meta name="description" content="Play Tic Tac Toe (noughts and crosses) free in your browser. Challenge the computer on easy, medium or hard, or play a friend, with undo, redo and win statistics.">
+  <meta name="keywords" content="Elpis, Tic Tac Toe, noughts and crosses, naughts and crosses, play tic tac toe, game, elpis tic tac toe">
   <meta name="author" content="Elpis">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0f1020" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f5fb" media="(prefers-color-scheme: light)">
+  <link rel="canonical" href="https://tic-tac-toe.elpis.cc/">
 
-  <meta name="name" content="Tic Tac Toe by Elpis">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Tic Tac Toe by Elpis">
+  <meta property="og:title" content="Tic Tac Toe by Elpis">
+  <meta property="og:description" content="Play Tic Tac Toe free in your browser against the computer or a friend.">
+  <meta property="og:url" content="https://tic-tac-toe.elpis.cc/">
+  <meta property="og:image" content="https://tic-tac-toe.elpis.cc/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="A Tic Tac Toe board with a winning row of X marks">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Tic Tac Toe by Elpis">
+  <meta name="twitter:description" content="Play Tic Tac Toe free in your browser against the computer or a friend.">
+  <meta name="twitter:image" content="https://tic-tac-toe.elpis.cc/assets/og-image.png">
 
-  <title>Tic Tac Toe by Elpis</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <link rel="manifest" href="site.webmanifest">
 
   <link rel="stylesheet" href="style.css">
-
-  <link rel="shortcut icon" href="assets/favicon.ico" type="image/x-icon">
-
   <script defer src="app.js"></script>
 
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": ["WebApplication", "VideoGame"],
+    "name": "Tic Tac Toe by Elpis",
+    "url": "https://tic-tac-toe.elpis.cc/",
+    "description": "A free browser game of Tic Tac Toe (noughts and crosses) with a computer opponent, two-player mode, undo and redo.",
+    "applicationCategory": "GameApplication",
+    "genre": "Puzzle",
+    "operatingSystem": "Any",
+    "browserRequirements": "Requires JavaScript",
+    "numberOfPlayers": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 2 },
+    "inLanguage": "en",
+    "isAccessibleForFree": true,
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Person", "name": "Elpis" }
+  }
+  </script>
 </head>
 
 <body>
 
+  <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="i-gear" viewBox="0 0 640 512"><path d="M512.1 191l-8.2 14.3c-3 5.3-9.4 7.5-15.1 5.4-11.8-4.4-22.6-10.7-32.1-18.6-4.6-3.8-5.8-10.5-2.8-15.7l8.2-14.3c-6.9-8-12.3-17.3-15.9-27.4h-16.5c-6 0-11.2-4.3-12.2-10.3-2-12-2.1-24.6 0-37.1 1-6 6.2-10.4 12.2-10.4h16.5c3.6-10.1 9-19.4 15.9-27.4l-8.2-14.3c-3-5.2-1.9-11.9 2.8-15.7 9.5-7.9 20.4-14.2 32.1-18.6 5.7-2.1 12.1.1 15.1 5.4l8.2 14.3c10.5-1.9 21.2-1.9 31.7 0L552 6.3c3-5.3 9.4-7.5 15.1-5.4 11.8 4.4 22.6 10.7 32.1 18.6 4.6 3.8 5.8 10.5 2.8 15.7l-8.2 14.3c6.9 8 12.3 17.3 15.9 27.4h16.5c6 0 11.2 4.3 12.2 10.3 2 12 2.1 24.6 0 37.1-1 6-6.2 10.4-12.2 10.4h-16.5c-3.6 10.1-9 19.4-15.9 27.4l8.2 14.3c3 5.2 1.9 11.9-2.8 15.7-9.5 7.9-20.4 14.2-32.1 18.6-5.7 2.1-12.1-.1-15.1-5.4l-8.2-14.3c-10.4 1.9-21.2 1.9-31.7 0zm-10.5-58.8c38.5 29.6 82.4-14.3 52.8-52.8-38.5-29.7-82.4 14.3-52.8 52.8zM386.3 286.1l33.7 16.8c10.1 5.8 14.5 18.1 10.5 29.1-8.9 24.2-26.4 46.4-42.6 65.8-7.4 8.9-20.2 11.1-30.3 5.3l-29.1-16.8c-16 13.7-34.6 24.6-54.9 31.7v33.6c0 11.6-8.3 21.6-19.7 23.6-24.6 4.2-50.4 4.4-75.9 0-11.5-2-20-11.9-20-23.6V418c-20.3-7.2-38.9-18-54.9-31.7L74 403c-10 5.8-22.9 3.6-30.3-5.3-16.2-19.4-33.3-41.6-42.2-65.7-4-10.9.4-23.2 10.5-29.1l33.3-16.8c-3.9-20.9-3.9-42.4 0-63.4L12 205.8c-10.1-5.8-14.6-18.1-10.5-29 8.9-24.2 26-46.4 42.2-65.8 7.4-8.9 20.2-11.1 30.3-5.3l29.1 16.8c16-13.7 34.6-24.6 54.9-31.7V57.1c0-11.5 8.2-21.5 19.6-23.5 24.6-4.2 50.5-4.4 76-.1 11.5 2 20 11.9 20 23.6v33.6c20.3 7.2 38.9 18 54.9 31.7l29.1-16.8c10-5.8 22.9-3.6 30.3 5.3 16.2 19.4 33.2 41.6 42.1 65.8 4 10.9.1 23.2-10 29.1l-33.7 16.8c3.9 21 3.9 42.5 0 63.5zm-117.6 21.1c59.2-77-28.7-164.9-105.7-105.7-59.2 77 28.7 164.9 105.7 105.7zm243.4 182.7l-8.2 14.3c-3 5.3-9.4 7.5-15.1 5.4-11.8-4.4-22.6-10.7-32.1-18.6-4.6-3.8-5.8-10.5-2.8-15.7l8.2-14.3c-6.9-8-12.3-17.3-15.9-27.4h-16.5c-6 0-11.2-4.3-12.2-10.3-2-12-2.1-24.6 0-37.1 1-6 6.2-10.4 12.2-10.4h16.5c3.6-10.1 9-19.4 15.9-27.4l-8.2-14.3c-3-5.2-1.9-11.9 2.8-15.7 9.5-7.9 20.4-14.2 32.1-18.6 5.7-2.1 12.1.1 15.1 5.4l8.2 14.3c10.5-1.9 21.2-1.9 31.7 0l8.2-14.3c3-5.3 9.4-7.5 15.1-5.4 11.8 4.4 22.6 10.7 32.1 18.6 4.6 3.8 5.8 10.5 2.8 15.7l-8.2 14.3c6.9 8 12.3 17.3 15.9 27.4h16.5c6 0 11.2 4.3 12.2 10.3 2 12 2.1 24.6 0 37.1-1 6-6.2 10.4-12.2 10.4h-16.5c-3.6 10.1-9 19.4-15.9 27.4l8.2 14.3c3 5.2 1.9 11.9-2.8 15.7-9.5 7.9-20.4 14.2-32.1 18.6-5.7 2.1-12.1-.1-15.1-5.4l-8.2-14.3c-10.4 1.9-21.2 1.9-31.7 0zM501.6 431c38.5 29.6 82.4-14.3 52.8-52.8-38.5-29.6-82.4 14.3-52.8 52.8z" /></symbol>
+    <symbol id="i-close" viewBox="0 0 352 512"><path d="M242.72 256l100.07-100.07c12.28-12.28 12.28-32.19 0-44.48l-22.24-22.24c-12.28-12.28-32.19-12.28-44.48 0L176 189.28 75.93 89.21c-12.28-12.28-32.19-12.28-44.48 0L9.21 111.45c-12.28 12.28-12.28 32.19 0 44.48L109.28 256 9.21 356.07c-12.28 12.28-12.28 32.19 0 44.48l22.24 22.24c12.28 12.28 32.2 12.28 44.48 0L176 322.72l100.07 100.07c12.28 12.28 32.2 12.28 44.48 0l22.24-22.24c12.28-12.28 12.28-32.19 0-44.48L242.72 256z" /></symbol>
+    <symbol id="i-undo" viewBox="0 0 512 512"><path d="M255.545 8c-66.269.119-126.438 26.233-170.86 68.685L48.971 40.971C33.851 25.851 8 36.559 8 57.941V192c0 13.255 10.745 24 24 24h134.059c21.382 0 32.09-25.851 16.971-40.971l-41.75-41.75c30.864-28.899 70.801-44.907 113.23-45.273 92.398-.798 170.283 73.977 169.484 169.442C423.236 348.009 349.816 424 256 424c-41.127 0-79.997-14.678-110.63-41.556-4.743-4.161-11.906-3.908-16.368.553L89.34 422.659c-4.872 4.872-4.631 12.815.482 17.433C133.798 479.813 192.074 504 256 504c136.966 0 247.999-111.033 248-247.998C504.001 119.193 392.354 7.755 255.545 8z" /></symbol>
+    <symbol id="i-restart" viewBox="0 0 512 512"><path d="M370.72 133.28C339.458 104.008 298.888 87.962 255.848 88c-77.458.068-144.328 53.178-162.791 126.85-1.344 5.363-6.122 9.15-11.651 9.15H24.103c-7.498 0-13.194-6.807-11.807-14.176C33.933 94.924 134.813 8 256 8c66.448 0 126.791 26.136 171.315 68.685L463.03 40.97C478.149 25.851 504 36.559 504 57.941V192c0 13.255-10.745 24-24 24H345.941c-21.382 0-32.09-25.851-16.971-40.971l41.75-41.749zM32 296h134.059c21.382 0 32.09 25.851 16.971 40.971l-41.75 41.75c31.262 29.273 71.835 45.319 114.876 45.28 77.418-.07 144.315-53.144 162.787-126.849 1.344-5.363 6.122-9.15 11.651-9.15h57.304c7.498 0 13.194 6.807 11.807 14.176C478.067 417.076 377.187 504 256 504c-66.448 0-126.791-26.136-171.315-68.685L48.97 471.03C33.851 486.149 8 475.441 8 454.059V320c0-13.255 10.745-24 24-24z" /></symbol>
+    <symbol id="i-redo" viewBox="0 0 512 512"><path d="M256.455 8c66.269.119 126.437 26.233 170.859 68.685l35.715-35.715C478.149 25.851 504 36.559 504 57.941V192c0 13.255-10.745 24-24 24H345.941c-21.382 0-32.09-25.851-16.971-40.971l41.75-41.75c-30.864-28.899-70.801-44.907-113.23-45.273-92.398-.798-170.283 73.977-169.484 169.442C88.764 348.009 162.184 424 256 424c41.127 0 79.997-14.678 110.629-41.556 4.743-4.161 11.906-3.908 16.368.553l39.662 39.662c4.872 4.872 4.631 12.815-.482 17.433C378.202 479.813 319.926 504 256 504 119.034 504 8.001 392.967 8 256.002 7.999 119.193 119.646 7.755 256.455 8z" /></symbol>
+  </svg>
+
+  <noscript>
+    <p class="noscript">Tic Tac Toe needs JavaScript to run. Please enable JavaScript in your browser to play this
+      free noughts and crosses game against the computer or a friend.</p>
+  </noscript>
+
   <div class="big-wrapper">
 
-    <div class="site-topper">
+    <header class="site-topper">
 
-      <nav>
+      <nav aria-label="Main">
 
-        <div class="site-name">
-          Tic Tac Toe
-        </div>
+        <h1 class="site-name">Tic Tac Toe</h1>
 
-        <div class="site-settings-nav">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">
-            <path
-              d="M512.1 191l-8.2 14.3c-3 5.3-9.4 7.5-15.1 5.4-11.8-4.4-22.6-10.7-32.1-18.6-4.6-3.8-5.8-10.5-2.8-15.7l8.2-14.3c-6.9-8-12.3-17.3-15.9-27.4h-16.5c-6 0-11.2-4.3-12.2-10.3-2-12-2.1-24.6 0-37.1 1-6 6.2-10.4 12.2-10.4h16.5c3.6-10.1 9-19.4 15.9-27.4l-8.2-14.3c-3-5.2-1.9-11.9 2.8-15.7 9.5-7.9 20.4-14.2 32.1-18.6 5.7-2.1 12.1.1 15.1 5.4l8.2 14.3c10.5-1.9 21.2-1.9 31.7 0L552 6.3c3-5.3 9.4-7.5 15.1-5.4 11.8 4.4 22.6 10.7 32.1 18.6 4.6 3.8 5.8 10.5 2.8 15.7l-8.2 14.3c6.9 8 12.3 17.3 15.9 27.4h16.5c6 0 11.2 4.3 12.2 10.3 2 12 2.1 24.6 0 37.1-1 6-6.2 10.4-12.2 10.4h-16.5c-3.6 10.1-9 19.4-15.9 27.4l8.2 14.3c3 5.2 1.9 11.9-2.8 15.7-9.5 7.9-20.4 14.2-32.1 18.6-5.7 2.1-12.1-.1-15.1-5.4l-8.2-14.3c-10.4 1.9-21.2 1.9-31.7 0zm-10.5-58.8c38.5 29.6 82.4-14.3 52.8-52.8-38.5-29.7-82.4 14.3-52.8 52.8zM386.3 286.1l33.7 16.8c10.1 5.8 14.5 18.1 10.5 29.1-8.9 24.2-26.4 46.4-42.6 65.8-7.4 8.9-20.2 11.1-30.3 5.3l-29.1-16.8c-16 13.7-34.6 24.6-54.9 31.7v33.6c0 11.6-8.3 21.6-19.7 23.6-24.6 4.2-50.4 4.4-75.9 0-11.5-2-20-11.9-20-23.6V418c-20.3-7.2-38.9-18-54.9-31.7L74 403c-10 5.8-22.9 3.6-30.3-5.3-16.2-19.4-33.3-41.6-42.2-65.7-4-10.9.4-23.2 10.5-29.1l33.3-16.8c-3.9-20.9-3.9-42.4 0-63.4L12 205.8c-10.1-5.8-14.6-18.1-10.5-29 8.9-24.2 26-46.4 42.2-65.8 7.4-8.9 20.2-11.1 30.3-5.3l29.1 16.8c16-13.7 34.6-24.6 54.9-31.7V57.1c0-11.5 8.2-21.5 19.6-23.5 24.6-4.2 50.5-4.4 76-.1 11.5 2 20 11.9 20 23.6v33.6c20.3 7.2 38.9 18 54.9 31.7l29.1-16.8c10-5.8 22.9-3.6 30.3 5.3 16.2 19.4 33.2 41.6 42.1 65.8 4 10.9.1 23.2-10 29.1l-33.7 16.8c3.9 21 3.9 42.5 0 63.5zm-117.6 21.1c59.2-77-28.7-164.9-105.7-105.7-59.2 77 28.7 164.9 105.7 105.7zm243.4 182.7l-8.2 14.3c-3 5.3-9.4 7.5-15.1 5.4-11.8-4.4-22.6-10.7-32.1-18.6-4.6-3.8-5.8-10.5-2.8-15.7l8.2-14.3c-6.9-8-12.3-17.3-15.9-27.4h-16.5c-6 0-11.2-4.3-12.2-10.3-2-12-2.1-24.6 0-37.1 1-6 6.2-10.4 12.2-10.4h16.5c3.6-10.1 9-19.4 15.9-27.4l-8.2-14.3c-3-5.2-1.9-11.9 2.8-15.7 9.5-7.9 20.4-14.2 32.1-18.6 5.7-2.1 12.1.1 15.1 5.4l8.2 14.3c10.5-1.9 21.2-1.9 31.7 0l8.2-14.3c3-5.3 9.4-7.5 15.1-5.4 11.8 4.4 22.6 10.7 32.1 18.6 4.6 3.8 5.8 10.5 2.8 15.7l-8.2 14.3c6.9 8 12.3 17.3 15.9 27.4h16.5c6 0 11.2 4.3 12.2 10.3 2 12 2.1 24.6 0 37.1-1 6-6.2 10.4-12.2 10.4h-16.5c-3.6 10.1-9 19.4-15.9 27.4l8.2 14.3c3 5.2 1.9 11.9-2.8 15.7-9.5 7.9-20.4 14.2-32.1 18.6-5.7 2.1-12.1-.1-15.1-5.4l-8.2-14.3c-10.4 1.9-21.2 1.9-31.7 0zM501.6 431c38.5 29.6 82.4-14.3 52.8-52.8-38.5-29.6-82.4 14.3-52.8 52.8z" />
-          </svg>
-        </div>
+        <button type="button" class="site-settings-nav" aria-label="Open settings and statistics"
+          aria-haspopup="dialog" aria-expanded="false">
+          <svg aria-hidden="true" focusable="false"><use href="#i-gear" /></svg>
+        </button>
 
         <div class="site-settings-holder">
 
-          <div class="site-settings">
+          <div class="site-settings" role="dialog" aria-modal="true" aria-labelledby="sett-heading" tabindex="-1">
+
+            <div class="sett-header">
+              <h2 id="sett-heading">Settings</h2>
+              <button type="button" class="site-settings-close" aria-label="Close settings">
+                <svg aria-hidden="true" focusable="false"><use href="#i-close" /></svg>
+              </button>
+            </div>
 
             <div class="inside-settings">
 
-              <div class="sett-title">Settings</div>
-
               <div class="settings-item">
-                <label>Player Name</label>
-                <input type="text" id="sett-name">
+                <label for="sett-name">Player Name</label>
+                <input type="text" id="sett-name" maxlength="16" autocomplete="off">
               </div>
 
               <div class="settings-item">
-                <label>Opponent Name</label>
-                <input type="text" id="sett-xname">
+                <label for="sett-xname">Opponent Name</label>
+                <input type="text" id="sett-xname" maxlength="16" autocomplete="off">
               </div>
 
               <div class="settings-item">
-                <label>Player's Letter</label>
-                <div class="sett-letter-cont">
+                <span class="item-label" id="lbl-letter">Player's Letter</span>
+                <div class="sett-letter-cont segmented" role="radiogroup" aria-labelledby="lbl-letter">
                   <div>
                     <label for="lett-X">X</label>
                     <input type="radio" name="player-lett" id="lett-X">
@@ -77,8 +122,8 @@
               </div>
 
               <div class="settings-item">
-                <label>Difficulty</label>
-                <div class="sett-difficulty-cont">
+                <span class="item-label" id="lbl-diff">Difficulty</span>
+                <div class="sett-difficulty-cont segmented" role="radiogroup" aria-labelledby="lbl-diff">
                   <div>
                     <label for="foarm-easy">Easy</label>
                     <input type="radio" name="diff-sel" id="foarm-easy">
@@ -95,8 +140,8 @@
               </div>
 
               <div class="settings-item">
-                <label>Number of Players</label>
-                <div class="sett-numb-cont">
+                <span class="item-label" id="lbl-numb">Number of Players</span>
+                <div class="sett-numb-cont segmented" role="radiogroup" aria-labelledby="lbl-numb">
                   <div>
                     <label for="num-one">One</label>
                     <input type="radio" name="numop-sel" id="num-one">
@@ -109,10 +154,10 @@
               </div>
 
               <div class="settings-item">
-                <label>First Move</label>
-                <div class="sett-firstm-cont">
+                <span class="item-label" id="lbl-first">First Move</span>
+                <div class="sett-firstm-cont segmented" role="radiogroup" aria-labelledby="lbl-first">
                   <div>
-                    <label for="start-XO">XO</label>
+                    <label for="start-XO">Alternate</label>
                     <input type="radio" name="start-lett" id="start-XO">
                   </div>
                   <div>
@@ -127,214 +172,156 @@
               </div>
 
               <div class="settings-item last">
-                <button id="sett-save-sett">Save</button>
+                <button type="button" class="btn btn-primary" id="sett-save-sett">Save</button>
               </div>
 
             </div>
 
             <div class="inside-stats">
 
-              <div class="sett-title">Statistics</div>
+              <h2 class="sett-title">Statistics</h2>
 
-              <table>
+              <div class="stats-scroll">
+                <table>
+                  <tbody id="stats-table">
+                    <tr>
+                      <th scope="col"><span class="sr-only">Mode</span></th>
+                      <th scope="col">Player</th>
+                      <th scope="col">Opponent</th>
+                      <th scope="col">Draw</th>
+                    </tr>
+                    <tr>
+                      <th scope="row">Easy</th>
+                      <td>0</td>
+                      <td>0</td>
+                      <td>0</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Medium</th>
+                      <td>0</td>
+                      <td>0</td>
+                      <td>0</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Hard</th>
+                      <td>0</td>
+                      <td>0</td>
+                      <td>0</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Friend</th>
+                      <td>0</td>
+                      <td>0</td>
+                      <td>0</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Total</th>
+                      <td>0</td>
+                      <td>0</td>
+                      <td>0</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
-                <tbody id="stats-table">
-
-                  <tr>
-                    <td></td>
-                    <td>Wendy</td>
-                    <td>Elpis</td>
-                    <td>Draw</td>
-                  </tr>
-
-                  <tr>
-                    <td>Easy</td>
-                    <td>0</td>
-                    <td>0</td>
-                    <td>0</td>
-                  </tr>
-
-                  <tr>
-                    <td>Medium</td>
-                    <td>0</td>
-                    <td>0</td>
-                    <td>0</td>
-                  </tr>
-
-                  <tr>
-                    <td>Hard</td>
-                    <td>0</td>
-                    <td>0</td>
-                    <td>0</td>
-                  </tr>
-
-                  <tr>
-                    <td>Friend</td>
-                    <td>0</td>
-                    <td>0</td>
-                    <td>0</td>
-                  </tr>
-
-                  <tr>
-                    <td>Total</td>
-                    <td>0</td>
-                    <td>0</td>
-                    <td>0</td>
-                  </tr>
-
-                </tbody>
-
-              </table>
-
-              <div class="settings-item last" style="padding-top: 1rem;">
-                <button id="stats-reset" style="background-color: darkred;">Reset</button>
+              <div class="settings-item last">
+                <button type="button" class="btn btn-danger" id="stats-reset">Reset statistics</button>
               </div>
 
             </div>
 
           </div>
 
-          <div class="site-settings-close">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 352 512">
-              <path
-                d="M242.72 256l100.07-100.07c12.28-12.28 12.28-32.19 0-44.48l-22.24-22.24c-12.28-12.28-32.19-12.28-44.48 0L176 189.28 75.93 89.21c-12.28-12.28-32.19-12.28-44.48 0L9.21 111.45c-12.28 12.28-12.28 32.19 0 44.48L109.28 256 9.21 356.07c-12.28 12.28-12.28 32.19 0 44.48l22.24 22.24c12.28 12.28 32.2 12.28 44.48 0L176 322.72l100.07 100.07c12.28 12.28 32.2 12.28 44.48 0l22.24-22.24c12.28-12.28 12.28-32.19 0-44.48L242.72 256z">
-              </path>
-            </svg>
-          </div>
-
         </div>
 
       </nav>
 
-    </div>
+    </header>
 
-    <div class="main-content">
+    <main class="main-content">
 
       <div class="after-site-topper"></div>
 
       <div class="game-holder">
 
-        <div class="board-controls-holder">
-
-          <div class="board-controls">
-
-            <div class="board-undo" title="Undo">
-
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-                <path
-                  d="M255.545 8c-66.269.119-126.438 26.233-170.86 68.685L48.971 40.971C33.851 25.851 8 36.559 8 57.941V192c0 13.255 10.745 24 24 24h134.059c21.382 0 32.09-25.851 16.971-40.971l-41.75-41.75c30.864-28.899 70.801-44.907 113.23-45.273 92.398-.798 170.283 73.977 169.484 169.442C423.236 348.009 349.816 424 256 424c-41.127 0-79.997-14.678-110.63-41.556-4.743-4.161-11.906-3.908-16.368.553L89.34 422.659c-4.872 4.872-4.631 12.815.482 17.433C133.798 479.813 192.074 504 256 504c136.966 0 247.999-111.033 248-247.998C504.001 119.193 392.354 7.755 255.545 8z" />
-              </svg>
-
-            </div>
-
-            <div class="board-reset" title="Restart">
-
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-                <path
-                  d="M370.72 133.28C339.458 104.008 298.888 87.962 255.848 88c-77.458.068-144.328 53.178-162.791 126.85-1.344 5.363-6.122 9.15-11.651 9.15H24.103c-7.498 0-13.194-6.807-11.807-14.176C33.933 94.924 134.813 8 256 8c66.448 0 126.791 26.136 171.315 68.685L463.03 40.97C478.149 25.851 504 36.559 504 57.941V192c0 13.255-10.745 24-24 24H345.941c-21.382 0-32.09-25.851-16.971-40.971l41.75-41.749zM32 296h134.059c21.382 0 32.09 25.851 16.971 40.971l-41.75 41.75c31.262 29.273 71.835 45.319 114.876 45.28 77.418-.07 144.315-53.144 162.787-126.849 1.344-5.363 6.122-9.15 11.651-9.15h57.304c7.498 0 13.194 6.807 11.807 14.176C478.067 417.076 377.187 504 256 504c-66.448 0-126.791-26.136-171.315-68.685L48.97 471.03C33.851 486.149 8 475.441 8 454.059V320c0-13.255 10.745-24 24-24z" />
-              </svg>
-
-            </div>
-
-            <div class="board-redo" title="Redo">
-
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-                <path
-                  d="M256.455 8c66.269.119 126.437 26.233 170.859 68.685l35.715-35.715C478.149 25.851 504 36.559 504 57.941V192c0 13.255-10.745 24-24 24H345.941c-21.382 0-32.09-25.851-16.971-40.971l41.75-41.75c-30.864-28.899-70.801-44.907-113.23-45.273-92.398-.798-170.283 73.977-169.484 169.442C88.764 348.009 162.184 424 256 424c41.127 0 79.997-14.678 110.629-41.556 4.743-4.161 11.906-3.908 16.368.553l39.662 39.662c4.872 4.872 4.631 12.815-.482 17.433C378.202 479.813 319.926 504 256 504 119.034 504 8.001 392.967 8 256.002 7.999 119.193 119.646 7.755 256.455 8z" />
-              </svg>
-
-            </div>
-
+        <div class="board-stats-holder" aria-label="Scoreboard">
+          <div class="board-stats">
+            <div class="board-name"></div>
+            <div class="board-draws"></div>
+            <div class="board-xname"></div>
           </div>
-
         </div>
+
+        <p class="game-status" id="game-status" role="status" aria-live="polite"></p>
 
         <div class="tic-tac-toe-board-holder">
-
           <div class="tic-toe-board">
-
-            <table class="">
-
+            <table role="presentation">
               <tbody id="board-body">
-
                 <tr>
-
                   <td></td>
-
                   <td></td>
-
                   <td></td>
-
                 </tr>
-
                 <tr>
-
                   <td></td>
-
                   <td></td>
-
                   <td></td>
-
                 </tr>
-
                 <tr>
-
                   <td></td>
-
                   <td></td>
-
                   <td></td>
-
                 </tr>
-
               </tbody>
-
             </table>
-
           </div>
-
         </div>
 
-        <div class="board-stats-holder">
-
-          <div class="board-stats">
-
-            <div class="board-name"></div>
-
-            <div class="board-xname"></div>
-
-            <div class="board-draws"></div>
-
+        <div class="board-controls-holder">
+          <div class="board-controls">
+            <button type="button" class="board-undo" aria-label="Undo move" title="Undo">
+              <svg aria-hidden="true" focusable="false"><use href="#i-undo" /></svg>
+              <span>Undo</span>
+            </button>
+            <button type="button" class="board-reset" aria-label="Restart game" title="Restart">
+              <svg aria-hidden="true" focusable="false"><use href="#i-restart" /></svg>
+              <span>Restart</span>
+            </button>
+            <button type="button" class="board-redo" aria-label="Redo move" title="Redo">
+              <svg aria-hidden="true" focusable="false"><use href="#i-redo" /></svg>
+              <span>Redo</span>
+            </button>
           </div>
-
         </div>
 
         <div class="board-cover"></div>
 
       </div>
 
-    </div>
+      <section class="about" aria-label="About this game">
+        <p>Free Tic Tac Toe (noughts and crosses) in your browser. Play the computer on easy, medium or hard, or
+          take turns with a friend on one device. Your settings and stats are saved locally.</p>
+      </section>
+
+    </main>
 
     <div class="message-holder">
-      <span id="mess-cancel">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 352 512">
-          <path
-            d="M242.72 256l100.07-100.07c12.28-12.28 12.28-32.19 0-44.48l-22.24-22.24c-12.28-12.28-32.19-12.28-44.48 0L176 189.28 75.93 89.21c-12.28-12.28-32.19-12.28-44.48 0L9.21 111.45c-12.28 12.28-12.28 32.19 0 44.48L109.28 256 9.21 356.07c-12.28 12.28-12.28 32.19 0 44.48l22.24 22.24c12.28 12.28 32.2 12.28 44.48 0L176 322.72l100.07 100.07c12.28 12.28 32.2 12.28 44.48 0l22.24-22.24c12.28-12.28 12.28-32.19 0-44.48L242.72 256z" />
-        </svg>
-      </span>
+      <button type="button" id="mess-cancel" aria-label="Close message">
+        <svg aria-hidden="true" focusable="false"><use href="#i-close" /></svg>
+      </button>
       <div class="message-blur"></div>
-      <div class="message"></div>
+      <div class="message" role="dialog" aria-modal="true" aria-label="Welcome" tabindex="-1"></div>
     </div>
 
     <div class="small-message-holder">
-      <span id="small-mess-cancel">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 352 512">
-          <path
-            d="M242.72 256l100.07-100.07c12.28-12.28 12.28-32.19 0-44.48l-22.24-22.24c-12.28-12.28-32.19-12.28-44.48 0L176 189.28 75.93 89.21c-12.28-12.28-32.19-12.28-44.48 0L9.21 111.45c-12.28 12.28-12.28 32.19 0 44.48L109.28 256 9.21 356.07c-12.28 12.28-12.28 32.19 0 44.48l22.24 22.24c12.28 12.28 32.2 12.28 44.48 0L176 322.72l100.07 100.07c12.28 12.28 32.2 12.28 44.48 0l22.24-22.24c12.28-12.28 12.28-32.19 0-44.48L242.72 256z" />
-        </svg>
-      </span>
       <div class="small-message-blur"></div>
-      <div class="small-message"></div>
+      <div class="small-message-box">
+        <div class="small-message" role="status" aria-live="polite"></div>
+        <button type="button" id="small-mess-cancel" aria-label="Dismiss notification">
+          <svg aria-hidden="true" focusable="false"><use href="#i-close" /></svg>
+        </button>
+      </div>
     </div>
 
   </div>
