@@ -10,8 +10,7 @@
   <meta name="keywords" content="Elpis, Tic Tac Toe, noughts and crosses, naughts and crosses, play tic tac toe, game, elpis tic tac toe">
   <meta name="author" content="Elpis">
   <meta name="color-scheme" content="dark light">
-  <meta name="theme-color" content="#172030" media="(prefers-color-scheme: dark)">
-  <meta name="theme-color" content="#f2f4f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#24302d">
   <link rel="canonical" href="https://tic-tac-toe.elpis.cc/">
 
   <meta property="og:type" content="website">
@@ -22,7 +21,7 @@
   <meta property="og:image" content="https://tic-tac-toe.elpis.cc/assets/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="A hand-drawn Tic Tac Toe board with a line struck through three X marks">
+  <meta property="og:image:alt" content="A Tic Tac Toe game drawn in chalk on a blackboard, with a line struck through three X marks">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Tic Tac Toe by Elpis">
   <meta name="twitter:description" content="Play Tic Tac Toe free in your browser against the computer or a friend.">
@@ -33,8 +32,25 @@
   <link rel="apple-touch-icon" href="assets/icon-192.png">
   <link rel="manifest" href="site.webmanifest">
 
-  <link rel="preload" href="assets/fonts/recursive-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <script>
+    // Pick the chalkboard or the paper before the first paint
+    (function () {
+      var theme = ''
+      try {
+        var key = /[?&]test\b/.test(location.search) ? 'user-test' : 'user'
+        theme = (JSON.parse(localStorage.getItem(key)) || {}).theme || ''
+      } catch (e) { }
+      if (theme !== 'board' && theme !== 'paper') {
+        theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'paper' : 'board'
+      }
+      document.documentElement.dataset.theme = theme
+    })()
+  </script>
+
+  <link rel="preload" href="assets/fonts/shantell-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="style.css">
+  <script defer src="draw.js"></script>
+  <script defer src="ai.js"></script>
   <script defer src="app.js"></script>
 
   <script type="application/ld+json">
@@ -65,6 +81,10 @@
     <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></symbol>
     <symbol id="i-restart" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8.3" /><path d="M3 3.5v4.8h4.8" /></symbol>
     <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" /></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" /><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18.3 6.5a8 8 0 0 1 0 11" /></symbol>
+    <symbol id="i-muted" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" /><path d="M16 9.5l5 5M21 9.5l-5 5" /></symbol>
+    <symbol id="i-paper" viewBox="0 0 24 24"><path d="M4.5 19.5l1-4.2L16.2 4.6a1.6 1.6 0 0 1 2.3 0l.9.9a1.6 1.6 0 0 1 0 2.3L8.7 18.5z" /><path d="M14 6.8l3.2 3.2" /></symbol>
+    <symbol id="i-board" viewBox="0 0 24 24"><path d="M3.5 5h17v11h-17z" /><path d="M8 20l1.5-4M16 20l-1.5-4M7 9.5l2.5 2.5M9.5 9.5L7 12" /><circle cx="15.5" cy="10.7" r="1.6" /></symbol>
   </svg>
 
   <noscript>
@@ -72,267 +92,199 @@
       free noughts and crosses game against the computer or a friend.</p>
   </noscript>
 
-  <div class="big-wrapper">
+  <canvas class="backdrop" aria-hidden="true"></canvas>
 
-    <header class="site-topper">
+  <div class="page">
 
-      <nav aria-label="Main">
+    <header class="top">
 
-        <h1 class="site-name">Tic Tac Toe</h1>
+      <h1 class="title"><span class="chalked">Tic Tac Toe</span></h1>
 
-        <button type="button" class="site-settings-nav" aria-label="Open settings and statistics"
-          aria-haspopup="dialog" aria-expanded="false">
-          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-gear" /></svg>
+      <div class="top-actions">
+
+        <button type="button" class="icon-btn" id="sound-toggle" aria-pressed="true" aria-label="Sound" title="Sound">
+          <svg class="icon chalked" aria-hidden="true" focusable="false"><use href="#i-sound" /></svg>
         </button>
 
-        <div class="site-settings-holder">
+        <button type="button" class="icon-btn" id="theme-toggle" aria-label="Switch to paper" title="Switch to paper">
+          <svg class="icon chalked" aria-hidden="true" focusable="false"><use href="#i-paper" /></svg>
+        </button>
 
-          <div class="site-settings" role="dialog" aria-modal="true" aria-labelledby="sett-heading" tabindex="-1">
+        <button type="button" class="icon-btn" id="settings-open" aria-label="Settings and statistics"
+          title="Settings and statistics" aria-haspopup="dialog">
+          <svg class="icon chalked" aria-hidden="true" focusable="false"><use href="#i-gear" /></svg>
+        </button>
 
-            <div class="sett-header">
-              <h2 id="sett-heading">Settings</h2>
-              <button type="button" class="site-settings-close" aria-label="Close settings">
-                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close" /></svg>
-              </button>
-            </div>
-
-            <div class="inside-settings">
-
-              <div class="settings-item">
-                <label for="sett-name">Your name</label>
-                <input type="text" id="sett-name" maxlength="16" autocomplete="off">
-              </div>
-
-              <div class="settings-item">
-                <label for="sett-xname">Opponent name</label>
-                <input type="text" id="sett-xname" maxlength="16" autocomplete="off">
-              </div>
-
-              <div class="settings-item">
-                <span class="item-label" id="lbl-letter">Your letter</span>
-                <div class="sett-letter-cont segmented" role="radiogroup" aria-labelledby="lbl-letter">
-                  <div>
-                    <label for="lett-X">X</label>
-                    <input type="radio" name="player-lett" id="lett-X">
-                  </div>
-                  <div>
-                    <label for="lett-O">O</label>
-                    <input type="radio" name="player-lett" id="lett-O">
-                  </div>
-                </div>
-              </div>
-
-              <div class="settings-item">
-                <span class="item-label" id="lbl-diff">Difficulty</span>
-                <div class="sett-difficulty-cont segmented" role="radiogroup" aria-labelledby="lbl-diff">
-                  <div>
-                    <label for="foarm-easy">Easy</label>
-                    <input type="radio" name="diff-sel" id="foarm-easy">
-                  </div>
-                  <div>
-                    <label for="foarm-medium">Medium</label>
-                    <input type="radio" name="diff-sel" id="foarm-medium">
-                  </div>
-                  <div>
-                    <label for="foarm-hard">Hard</label>
-                    <input type="radio" name="diff-sel" id="foarm-hard">
-                  </div>
-                </div>
-              </div>
-
-              <div class="settings-item">
-                <span class="item-label" id="lbl-numb">Players</span>
-                <div class="sett-numb-cont segmented" role="radiogroup" aria-labelledby="lbl-numb">
-                  <div>
-                    <label for="num-one">One</label>
-                    <input type="radio" name="numop-sel" id="num-one">
-                  </div>
-                  <div>
-                    <label for="num-two">Two</label>
-                    <input type="radio" name="numop-sel" id="num-two">
-                  </div>
-                </div>
-              </div>
-
-              <div class="settings-item">
-                <span class="item-label" id="lbl-first">First move</span>
-                <div class="sett-firstm-cont segmented" role="radiogroup" aria-labelledby="lbl-first">
-                  <div>
-                    <label for="start-XO">Alternate</label>
-                    <input type="radio" name="start-lett" id="start-XO">
-                  </div>
-                  <div>
-                    <label for="start-X">X</label>
-                    <input type="radio" name="start-lett" id="start-X">
-                  </div>
-                  <div>
-                    <label for="start-O">O</label>
-                    <input type="radio" name="start-lett" id="start-O">
-                  </div>
-                </div>
-              </div>
-
-              <div class="settings-item last">
-                <button type="button" class="btn btn-primary" id="sett-save-sett">Save</button>
-              </div>
-
-            </div>
-
-            <div class="inside-stats">
-
-              <h2 class="sett-title">Statistics</h2>
-
-              <div class="stats-scroll">
-                <table>
-                  <tbody id="stats-table">
-                    <tr>
-                      <th scope="col"><span class="sr-only">Mode</span></th>
-                      <th scope="col">Player</th>
-                      <th scope="col">Opponent</th>
-                      <th scope="col">Draws</th>
-                    </tr>
-                    <tr>
-                      <th scope="row">Easy</th>
-                      <td>0</td>
-                      <td>0</td>
-                      <td>0</td>
-                    </tr>
-                    <tr>
-                      <th scope="row">Medium</th>
-                      <td>0</td>
-                      <td>0</td>
-                      <td>0</td>
-                    </tr>
-                    <tr>
-                      <th scope="row">Hard</th>
-                      <td>0</td>
-                      <td>0</td>
-                      <td>0</td>
-                    </tr>
-                    <tr>
-                      <th scope="row">Friend</th>
-                      <td>0</td>
-                      <td>0</td>
-                      <td>0</td>
-                    </tr>
-                    <tr>
-                      <th scope="row">Total</th>
-                      <td>0</td>
-                      <td>0</td>
-                      <td>0</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <div class="settings-item last">
-                <button type="button" class="btn btn-danger" id="stats-reset">Reset statistics</button>
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </nav>
+      </div>
 
     </header>
 
-    <main class="main-content">
+    <main class="main">
 
-      <div class="after-site-topper"></div>
+      <div class="game" data-turn="" data-result="">
 
-      <div class="game-holder">
+        <div class="scoreboard" role="group" aria-label="Score, this visit">
 
-        <div class="board-stats-holder" aria-label="Scoreboard">
-          <div class="board-stats">
-            <div class="board-name"></div>
-            <div class="board-draws"></div>
-            <div class="board-xname"></div>
+          <div class="side side-you">
+            <div class="who chalked"><span class="letter" aria-hidden="true"></span><span class="who-name"></span></div>
+            <div class="tally"><canvas aria-hidden="true"></canvas><span class="count"></span></div>
           </div>
+
+          <div class="side side-draws">
+            <div class="who chalked"><span class="who-name">Draws</span></div>
+            <div class="tally"><canvas aria-hidden="true"></canvas><span class="count"></span></div>
+          </div>
+
+          <div class="side side-them">
+            <div class="who chalked"><span class="who-name"></span><span class="letter" aria-hidden="true"></span></div>
+            <div class="tally"><canvas aria-hidden="true"></canvas><span class="count"></span></div>
+          </div>
+
         </div>
 
-        <p class="game-status" id="game-status" role="status" aria-live="polite"></p>
+        <p class="status" id="game-status" role="status" aria-live="polite"><span class="chalked"></span></p>
 
-        <div class="tic-tac-toe-board-holder">
-          <div class="tic-toe-board">
-            <svg class="board-grid" viewBox="0 0 300 300" aria-hidden="true" focusable="false">
-              <path pathLength="1" d="M101 9 C99 90 102 205 99 291" />
-              <path pathLength="1" d="M199 8 C201 105 198 195 201 292" />
-              <path pathLength="1" d="M9 100 C105 98 195 102 291 99" />
-              <path pathLength="1" d="M8 201 C100 199 205 202 292 200" />
-            </svg>
-            <table role="presentation">
-              <tbody id="board-body">
-                <tr>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                </tr>
-                <tr>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                </tr>
-                <tr>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                </tr>
-              </tbody>
-            </table>
-            <svg class="board-strike" viewBox="0 0 300 300" aria-hidden="true" focusable="false"></svg>
+        <div class="board">
+
+          <canvas class="board-grid" aria-hidden="true"></canvas>
+
+          <canvas class="board-marks" aria-hidden="true"></canvas>
+
+          <div class="cells" id="cells" role="group" aria-label="Board">
+            <button type="button" class="cell"></button>
+            <button type="button" class="cell"></button>
+            <button type="button" class="cell"></button>
+            <button type="button" class="cell"></button>
+            <button type="button" class="cell"></button>
+            <button type="button" class="cell"></button>
+            <button type="button" class="cell"></button>
+            <button type="button" class="cell"></button>
+            <button type="button" class="cell"></button>
           </div>
+
         </div>
 
-        <div class="board-controls-holder">
-          <div class="board-controls">
-            <button type="button" class="board-undo" aria-label="Undo move" title="Undo">
+        <div class="controls">
+
+          <button type="button" class="ctrl" id="undo" title="Undo (Ctrl+Z)">
+            <span class="chalked">
               <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-undo" /></svg>
-              <span>Undo</span>
-            </button>
-            <button type="button" class="board-reset" aria-label="Restart game" title="Restart">
+              <span class="ctrl-label">Undo</span>
+            </span>
+          </button>
+
+          <button type="button" class="ctrl ctrl-main" id="new-game">
+            <span class="chalked">
               <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-restart" /></svg>
-              <span>Restart</span>
-            </button>
-            <button type="button" class="board-redo" aria-label="Redo move" title="Redo">
+              <span class="ctrl-label">New game</span>
+            </span>
+          </button>
+
+          <button type="button" class="ctrl" id="redo" title="Redo (Ctrl+Shift+Z)">
+            <span class="chalked">
+              <span class="ctrl-label">Redo</span>
               <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-redo" /></svg>
-              <span>Redo</span>
-            </button>
-          </div>
+            </span>
+          </button>
+
         </div>
 
-        <div class="board-cover"></div>
+        <div class="choice opponent" id="opponent" role="radiogroup" aria-labelledby="opponent-label">
+          <span class="choice-label" id="opponent-label" aria-label="Play against">vs</span>
+          <label><input type="radio" name="opponent" value="easy"><span class="chalked">Easy</span></label>
+          <label><input type="radio" name="opponent" value="medium"><span class="chalked">Medium</span></label>
+          <label><input type="radio" name="opponent" value="hard"><span class="chalked">Hard</span></label>
+          <label><input type="radio" name="opponent" value="friend"><span class="chalked">Friend</span></label>
+        </div>
 
       </div>
 
       <section class="about" aria-label="About this game">
         <p>Free Tic Tac Toe (noughts and crosses) in your browser. Play the computer on easy, medium or hard, or
-          take turns with a friend on one device. Your settings and stats are saved locally.</p>
+          take turns with a friend on one device. Your settings and stats are saved on this device.</p>
       </section>
 
     </main>
 
-    <div class="message-holder">
-      <button type="button" id="mess-cancel" aria-label="Close message">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close" /></svg>
-      </button>
-      <div class="message-blur"></div>
-      <div class="message" role="dialog" aria-modal="true" aria-label="Welcome" tabindex="-1"></div>
-    </div>
+  </div>
 
-    <div class="small-message-holder">
-      <div class="small-message-blur"></div>
-      <div class="small-message-box">
-        <div class="small-message" role="status" aria-live="polite"></div>
-        <button type="button" id="small-mess-cancel" aria-label="Dismiss notification">
+  <dialog class="drawer" id="settings" aria-labelledby="settings-heading">
+
+    <div class="drawer-body">
+
+      <div class="drawer-head">
+        <h2 id="settings-heading">Settings</h2>
+        <button type="button" class="icon-btn" id="settings-close" aria-label="Close settings">
           <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close" /></svg>
         </button>
       </div>
+
+      <div class="field">
+        <label for="sett-name">Your name</label>
+        <input type="text" id="sett-name" maxlength="16" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="field">
+        <label for="sett-xname">Opponent's name</label>
+        <input type="text" id="sett-xname" maxlength="16" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="field">
+        <span class="choice-label" id="letter-label">You play</span>
+        <div class="choice" id="sett-letter" role="radiogroup" aria-labelledby="letter-label">
+          <label class="pick-x"><input type="radio" name="letter" value="X"><span>X</span></label>
+          <label class="pick-o"><input type="radio" name="letter" value="O"><span>O</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="choice-label" id="first-label">First move</span>
+        <div class="choice" id="sett-first" role="radiogroup" aria-labelledby="first-label">
+          <label><input type="radio" name="first" value="XO"><span>Take turns</span></label>
+          <label class="pick-x"><input type="radio" name="first" value="X"><span>X</span></label>
+          <label class="pick-o"><input type="radio" name="first" value="O"><span>O</span></label>
+        </div>
+      </div>
+
+      <p class="drawer-note">Changing who plays what starts a new game.</p>
+
+      <h2 class="drawer-title">Statistics</h2>
+
+      <table class="stats">
+        <thead>
+          <tr>
+            <th scope="col"><span class="sr-only">Opponent</span></th>
+            <th scope="col">Won</th>
+            <th scope="col">Lost</th>
+            <th scope="col">Drawn</th>
+          </tr>
+        </thead>
+        <tbody id="stats-table">
+          <tr><th scope="row">Easy</th><td>0</td><td>0</td><td>0</td></tr>
+          <tr><th scope="row">Medium</th><td>0</td><td>0</td><td>0</td></tr>
+          <tr><th scope="row">Hard</th><td>0</td><td>0</td><td>0</td></tr>
+          <tr><th scope="row">Friend</th><td>0</td><td>0</td><td>0</td></tr>
+          <tr><th scope="row">Total</th><td>0</td><td>0</td><td>0</td></tr>
+        </tbody>
+      </table>
+
+      <button type="button" class="text-btn danger" id="stats-reset">Reset statistics</button>
+
     </div>
 
+  </dialog>
+
+  <div class="toast" id="toast">
+    <div class="toast-box">
+      <span class="toast-text" role="status" aria-live="polite"></span>
+      <button type="button" class="toast-action" hidden></button>
+      <button type="button" class="icon-btn toast-close" aria-label="Dismiss">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close" /></svg>
+      </button>
+    </div>
   </div>
+
+  <canvas class="dust" aria-hidden="true"></canvas>
 
 </body>
 

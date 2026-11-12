@@ -1,84 +1,113 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="board">
 <head>
 <meta charset="utf-8">
 <title>Share image source</title>
 <meta name="robots" content="noindex">
 <!--
-  Source for assets/og-image.png (1200x630). To regenerate, from the repo root:
+  Source for assets/og-image.png (1200x630). The board is drawn with the
+  game's own chalk (../draw.js), so it matches the page. To regenerate,
+  from the repo root:
     python3 -m http.server 8000
     google-chrome --headless --hide-scrollbars --window-size=1200,630 \
+      --virtual-time-budget=3000 \
       --screenshot=assets/og-image.png http://localhost:8000/docs/og-image.html
 -->
 <style>
   @font-face {
-    font-family: "Recursive";
-    font-weight: 400 900;
+    font-family: "Shantell Sans";
+    font-weight: 300 800;
     font-display: block;
-    src: url("../assets/fonts/recursive-latin.woff2") format("woff2");
+    src: url("../assets/fonts/shantell-sans-latin.woff2") format("woff2");
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 1200px; height: 630px; background: #172030; overflow: hidden; }
+  html, body { width: 1200px; height: 630px; background: #24302d; overflow: hidden; }
   body {
-    font-family: "Recursive", sans-serif;
-    color: #e9edf4;
+    position: relative;
+    font-family: "Shantell Sans", sans-serif;
+    color: #f2efe4;
     display: grid;
-    grid-template-columns: 1fr 380px;
+    grid-template-columns: 1fr 400px;
     align-items: center;
-    gap: 48px;
-    padding: 0 92px 0 88px;
+    gap: 40px;
+    padding: 0 96px 0 88px;
   }
-  .copy { display: flex; flex-direction: column; gap: 28px; }
+  canvas { -webkit-mask-size: 128px 128px; mask-size: 128px 128px; }
+  .smears { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .copy { position: relative; display: flex; flex-direction: column; gap: 26px; -webkit-mask-size: 128px 128px; mask-size: 128px 128px; }
   h1 {
     white-space: nowrap;
-    font-size: 104px;
-    font-weight: 850;
-    font-variation-settings: "CASL" 1;
+    font-size: 106px;
+    font-weight: 800;
     line-height: 0.95;
-    letter-spacing: -0.015em;
+    transform: rotate(-2deg);
+    transform-origin: left center;
   }
   p {
-    font-size: 31px;
+    font-size: 33px;
+    font-weight: 500;
     line-height: 1.35;
-    color: #9aa6bb;
+    color: #a9b6af;
   }
   .url {
-    margin-top: 26px;
-    font-size: 26px;
+    margin-top: 22px;
+    font-size: 27px;
     font-weight: 600;
-    color: #e9edf4;
-    opacity: 0.75;
+    opacity: 0.8;
   }
-  svg { width: 380px; height: 380px; overflow: visible; }
+  .board { position: relative; width: 400px; height: 400px; }
+  .board canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 </style>
 </head>
 <body>
+  <canvas class="smears"></canvas>
   <div class="copy">
     <h1>Tic Tac Toe</h1>
     <p>Play free in your browser,<br>against the computer or a friend.</p>
     <div class="url">tic-tac-toe.elpis.cc</div>
   </div>
-  <svg viewBox="0 0 300 300" fill="none" stroke-linecap="round">
-    <g stroke="#55647f" stroke-width="3.5">
-      <path d="M101 9 C99 90 102 205 99 291" />
-      <path d="M199 8 C201 105 198 195 201 292" />
-      <path d="M9 100 C105 98 195 102 291 99" />
-      <path d="M8 201 C100 199 205 202 292 200" />
-    </g>
-    <!-- cells are 100 units; marks use the game's 100x100 mark geometry -->
-    <g stroke-width="8">
-      <g stroke="#5ec8ff">
-        <path d="M25 24 L76 77 M76 23 L24 76" />
-        <path transform="translate(100 100)" d="M25 24 L76 77 M76 23 L24 76" />
-        <path transform="translate(200 200)" d="M25 24 L76 77 M76 23 L24 76" />
-      </g>
-      <g stroke="#ffad5c">
-        <circle cx="150" cy="50" r="31" />
-        <circle cx="50" cy="150" r="31" />
-        <circle cx="250" cy="150" r="31" />
-      </g>
-    </g>
-    <line x1="30" y1="30" x2="270" y2="270" stroke="#5ec8ff" stroke-width="7" />
-  </svg>
+  <div class="board"><canvas></canvas></div>
+  <script src="../draw.js"></script>
+  <script>
+    const INK = '#f2efe4', X = '#8fd3f7', O = '#f8c66a'
+    Sketch.setMaterial('chalk')
+    const mask = (el, depth, seed) => { el.style.webkitMaskImage = el.style.maskImage = `url(${Sketch.grain(depth, seed)})` }
+    mask(document.querySelector('.copy'), 0.36, 23)
+
+    // Eraser smears across the board
+    const smears = document.querySelector('.smears')
+    const back = Sketch.createSurface(smears, 0, 1)
+    back.fit()
+    const r0 = Sketch.random(5)
+    for (let i = 0; i < 9; i++) {
+      const x = r0() * 1200, y = r0() * 630, len = 300 + r0() * 600, a = (r0() - 0.5) * 1.1
+      back.stroke(Sketch.line(r0, x - Math.cos(a) * len / 2, y - Math.sin(a) * len / 2, x + Math.cos(a) * len / 2, y + Math.sin(a) * len / 2, 14), {
+        color: INK, width: 110 + r0() * 170, strength: 0.007 + r0() * 0.008, soft: true, seed: i + 1, instant: true
+      })
+    }
+
+    // A finished game: X wins on the diagonal
+    const canvas = document.querySelector('.board canvas')
+    mask(canvas, 0.62, 11)
+    const s = Sketch.createSurface(canvas, 300)
+    s.fit()
+    const r = Sketch.random(42)
+    const pen = (points, color, extra) => s.stroke(points, Object.assign({ color: color, seed: Math.floor(r() * 1e9), instant: true }, extra))
+    const lean = () => (r() - 0.5) * 5
+    ;[[100 + lean(), 7, 100 + lean(), 293], [200 + lean(), 6, 200 + lean(), 294], [7, 100 + lean(), 293, 100 + lean()], [6, 200 + lean(), 294, 200 + lean()]]
+      .forEach(l => pen(Sketch.line(r, l[0], l[1], l[2], l[3]), INK, { width: Sketch.material().width * 0.8, strength: 0.9 }))
+    const centre = (i) => [(i % 3) * 100 + 50 + (r() - 0.5) * 6, Math.floor(i / 3) * 100 + 50 + (r() - 0.5) * 6]
+    const j = () => (r() - 0.5) * 9
+    ;[0, 4, 8].forEach((i) => {
+      const [cx, cy] = centre(i)
+      pen(Sketch.line(r, cx - 28 + j(), cy - 28 + j(), cx + 28 + j(), cy + 28 + j()), X)
+      pen(Sketch.line(r, cx + 28 + j(), cy - 28 + j(), cx - 28 + j(), cy + 28 + j()), X)
+    })
+    ;[1, 3, 5].forEach((i) => {
+      const [cx, cy] = centre(i)
+      pen(Sketch.ring(r, cx, cy, 29, 29), O)
+    })
+    pen(Sketch.line(r, 12, 14, 289, 287, 0.7), X, { width: Sketch.material().width * 1.2 })
+  </script>
 </body>
 </html>

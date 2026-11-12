@@ -1,20 +1,80 @@
-// Escape user supplied text before it is placed in innerHTML
-const escapeHtml = function (text) {
-  return String(text).replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[ch]))
-}
+/* Tic Tac Toe by Elpis: the game.
+
+   StorageCtrl  reads and writes the browser's storage
+   UserCtrl     the saved profile: names, settings, statistics, the board
+   UICtrl       page elements and the toast
+   DrawCtrl     puts the board, marks and tally marks on the canvases
+   BoardCtrl    the rules and the flow of a game
+   App          settings, toggles and start-up
+
+   draw.js supplies Sketch and Sound, ai.js supplies ComputerCtrl. */
+
+// index.html?test plays on a separate save and shows the move order
+const TEST_MODE = /[?&]test\b/.test(window.location.search)
+
 
 // Storage Controller
 const StorageCtrl = (function () {
+
+  const KEY = TEST_MODE ? 'user-test' : 'user'
+
+  const VISIT_KEY = `${KEY}-visit`
+
+  // Everything saved is kept here too. Once a value has been read or
+  // written this copy is the one used, so the game carries on for the
+  // rest of the visit when storage is blocked or full.
+  const memory = {}
+
+  const load = function (store, key) {
+
+    if (memory[key] === undefined) {
+
+      try {
+
+        memory[key] = window[store].getItem(key) || 'null'
+
+      } catch (e) {
+
+        memory[key] = 'null'
+
+      }
+
+    }
+
+    try {
+
+      return JSON.parse(memory[key])
+
+    } catch (e) {
+
+      return null
+
+    }
+
+  }
+
+  const save = function (store, key, data) {
+
+    const text = JSON.stringify(data)
+
+    memory[key] = text
+
+    try {
+
+      window[store].setItem(key, text)
+
+    } catch (e) {
+
+      // Storage is full or blocked. The copy in memory lasts the visit.
+    }
+
+  }
 
   const setUser = function (data) {
 
     if (typeof data === 'object') {
 
-      const dataX = JSON.stringify(data)
-
-      localStorage.setItem('user', dataX)
+      save('localStorage', KEY, data)
 
     }
 
@@ -22,11 +82,15 @@ const StorageCtrl = (function () {
 
   const getUser = function () {
 
-    const data = localStorage.getItem('user')
-
-    const dataX = JSON.parse(data)
+    const dataX = load('localStorage', KEY)
 
     if (typeof dataX === 'object' && dataX !== null) {
+
+      ;['statEasy', 'statMedium', 'statHard', 'statFriend', 'statTotal'].forEach((stat) => {
+
+        if (!Array.isArray(dataX[stat]) || dataX[stat].length !== 3) { dataX[stat] = [0, 0, 0] }
+
+      })
 
       dataX.calculateStats = function () {
         this.statTotal.forEach((item, index) => {
@@ -48,177 +112,70 @@ const StorageCtrl = (function () {
 
   }
 
+  // The score of this visit. It lasts until the tab is closed.
+  const getVisit = function () {
+
+    const data = load('sessionStorage', VISIT_KEY)
+
+    return (typeof data === 'object' && data !== null) ? data : {}
+
+  }
+
+  const setVisit = function (data) {
+
+    save('sessionStorage', VISIT_KEY, data)
+
+  }
+
   return {
 
     setUser: (data) => setUser(data),
 
     getUser: () => getUser(),
 
+    getVisit: () => getVisit(),
+
+    setVisit: (data) => setVisit(data),
+
   }
 })();
 
 
-//  Controller
+// User Controller
 const UserCtrl = (function () {
+
+  // What the rest of the game calls a value, where it is kept in the
+  // profile, and what to answer when it has never been set.
+  const FIELDS = {
+    'name': ['name', ''],
+    'xname': ['xname', ''],
+    'letter': ['letter', ''],
+    'difficulty': ['difficulty', ''],
+    'numb players': ['numbPlay', ''],
+    'first move': ['firstMove', ''],
+    'stat easy': ['statEasy', [0, 0, 0]],
+    'stat medium': ['statMedium', [0, 0, 0]],
+    'stat hard': ['statHard', [0, 0, 0]],
+    'stat friend': ['statFriend', [0, 0, 0]],
+    'stat total': ['statTotal', [0, 0, 0]],
+    'board': ['board', {}],
+    'theme': ['theme', ''],
+    'sound': ['sound', true],
+  }
 
   const getData = function (dataName) {
 
     const profile = StorageCtrl.getUser()
 
-    let result = ''
+    const field = FIELDS[dataName]
 
-    if (profile !== '') {
+    if (profile === '' || !field) { return '' }
 
-      switch (dataName) {
+    if (dataName.startsWith('stat ')) { profile.calculateStats() }
 
-        case 'name':
+    const result = profile[field[0]]
 
-          result = profile.name
-
-          if (result === undefined) {
-            result = ''
-          }
-
-          break;
-
-        case 'xname':
-
-          result = profile.xname
-
-          if (result === undefined) {
-            result = ''
-          }
-
-          break;
-
-        case 'letter':
-
-          result = profile.letter
-
-          if (result === undefined) {
-            result = ''
-          }
-
-          break;
-
-        case 'difficulty':
-
-          result = profile.difficulty
-
-          if (result === undefined) {
-            result = ''
-          }
-
-          break;
-
-        case 'numb players':
-
-          result = profile.numbPlay
-
-          if (result === undefined) {
-            result = ''
-          }
-
-          break;
-
-        case 'first move':
-
-          result = profile.firstMove
-
-          if (result === undefined) {
-            result = ''
-          }
-
-          break;
-
-        case 'stat easy':
-
-          profile.calculateStats()
-
-          result = profile.statEasy
-
-          if (result === undefined) {
-            result = [0, 0, 0]
-          }
-
-          break;
-
-        case 'stat medium':
-
-          profile.calculateStats()
-
-          result = profile.statMedium
-
-          if (result === undefined) {
-            result = [0, 0, 0]
-          }
-
-          break;
-
-        case 'stat hard':
-
-          profile.calculateStats()
-
-          result = profile.statHard
-
-          if (result === undefined) {
-            result = [0, 0, 0]
-          }
-
-          break;
-
-        case 'stat friend':
-
-          profile.calculateStats()
-
-          result = profile.statFriend
-
-          if (result === undefined) {
-            result = [0, 0, 0]
-          }
-
-          break;
-
-        case 'stat total':
-
-          profile.calculateStats()
-
-          result = profile.statTotal
-
-          if (result === undefined) {
-            result = [0, 0, 0]
-          }
-
-          break;
-
-        case 'board':
-
-          result = profile.board
-
-          if (result === undefined) {
-            result = ['', '', '', '', '', '', '', '', '']
-          }
-
-          break;
-
-        case 'ext-board':
-
-          result = profile.extBoard
-
-          if (result === undefined) {
-            result = ''
-          }
-
-          break;
-
-        default:
-          break;
-
-      }
-
-    }
-
-    return result
+    return result === undefined ? field[1] : result
 
   }
 
@@ -226,98 +183,40 @@ const UserCtrl = (function () {
 
     const profile = StorageCtrl.getUser()
 
-    if (profile !== '') {
+    const field = FIELDS[dataName]
 
-      switch (dataName) {
+    if (profile === '' || !field) { return }
 
-        case 'name':
+    profile[field[0]] = data
 
-          profile.name = data
+    profile.calculateStats()
 
-          break;
+    StorageCtrl.setUser(profile)
 
-        case 'xname':
+  }
 
-          profile.xname = data
+  // A first visit starts playing straight away, with nothing to fill in
+  const ensureProfile = function () {
 
-          break;
+    if (StorageCtrl.getUser() !== '') { return }
 
-        case 'letter':
-
-          profile.letter = data
-
-          break;
-
-        case 'difficulty':
-
-          profile.difficulty = data
-
-          break;
-
-        case 'numb players':
-
-          profile.numbPlay = data
-
-          break;
-
-        case 'first move':
-
-          profile.firstMove = data
-
-          break;
-
-        case 'stat easy':
-
-          profile.statEasy = data
-
-          profile.calculateStats()
-
-          break;
-
-        case 'stat medium':
-
-          profile.statMedium = data
-
-          profile.calculateStats()
-
-          break;
-
-        case 'stat hard':
-
-          profile.statHard = data
-
-          profile.calculateStats()
-
-          break;
-
-        case 'stat friend':
-
-          profile.statFriend = data
-
-          profile.calculateStats()
-
-          break;
-
-        case 'board':
-
-          profile.board = data
-
-          break;
-
-        case 'ext-board':
-
-          profile.extBoard = data
-
-          break;
-
-        default:
-          break;
-
-      }
-
-      StorageCtrl.setUser(profile)
-
-    }
+    StorageCtrl.setUser({
+      name: 'You',
+      xname: 'Computer',
+      letter: 'X',
+      difficulty: 'easy',
+      numbPlay: 'one',
+      firstMove: 'XO',
+      statEasy: [0, 0, 0],
+      statMedium: [0, 0, 0],
+      statHard: [0, 0, 0],
+      statFriend: [0, 0, 0],
+      statTotal: [0, 0, 0],
+      extBoard: true,
+      theme: '',
+      sound: true,
+      board: {}
+    })
 
   }
 
@@ -327,17 +226,9 @@ const UserCtrl = (function () {
 
     setData: (dataName, data) => setData(dataName, data),
 
-  }
-})();
-
-
-// Global Controller
-const GlobalCtrl = (function () {
-
-  return {
+    ensureProfile: () => ensureProfile(),
 
   }
-
 })();
 
 
@@ -349,160 +240,117 @@ const UICtrl = (function () {
   }
 
   const findElements = function (tag) {
-    return document.querySelectorAll(tag)
+    return Array.from(document.querySelectorAll(tag))
   }
-
-  const addClass = function (element, clas) {
-    element.classList.add(clas)
-  }
-
-  const toggleClass = function (element, clas) {
-
-    if (element.classList.contains(clas)) {
-      removeClass(element, clas)
-    } else {
-      addClass(element, clas)
-    }
-
-  }
-
-  const removeClass = function (element, clas) {
-    element.classList.remove(clas)
-  }
-
-  const sendMessage = function (message) {
-
-    UIVars.message.innerHTML = message
-
-    addClass(UIVars.messageHolder, 'show')
-
-    const firstField = UIVars.message.querySelector('input, button')
-
-    if (firstField) { firstField.focus() } else { UIVars.message.focus() }
-
-  }
-
-  const removeMessage = function () {
-
-    removeClass(UIVars.messageHolder, 'show')
-
-  }
-
-  let smallMessageTimer = null
-
-  const sendSmallMessage = function (message, time) {
-
-    UIVars.smallMessage.textContent = message
-
-    addClass(UIVars.smallMessageHolder, 'show')
-
-    // A newer message must not be closed by an older message's timer
-    clearTimeout(smallMessageTimer)
-
-    if (time) {
-
-      smallMessageTimer = setTimeout(() => {
-        removeSmallMessage()
-      }, time);
-
-    }
-
-  }
-
-  const removeSmallMessage = function () {
-
-    removeClass(UIVars.smallMessageHolder, 'show')
-
-  }
-
-  const tabilize = function (tabHolder, elemHolder, tabName, elemName) {
-
-    const tabChildren = tabHolder.children
-
-    const elementChildren = elementHolder.children
-
-    tabHolder.addEventListener('click', (e) => {
-
-      if (e.target.classList.contains(tabName)) {
-
-        const caughtNum = `${elementName}-${e.target.id.split('-')[1]}`
-
-        for (let i = 0; i < tabChildren.length; i++) {
-          const element = tabChildren[i];
-
-          removeClass(element, 'active')
-
-        }
-
-        addClass(e.target, 'active')
-
-        for (let i = 0; i < elementChildren.length; i++) {
-          const element = elementChildren[i];
-
-          removeClass(element, 'show')
-
-          if (element.id === caughtNum) {
-            addClass(element, 'show')
-          }
-        }
-      }
-
-    })
-
-  }
-
 
   const UIVars = {
 
-    // Rest Elements
-    body: findElement('body'),
-    html: findElement('html'),
+    html: document.documentElement,
+    themeColor: findElement('meta[name="theme-color"]'),
 
-    // Navigational Elements
-    nav: findElement('.site-topper nav'),
-    navOpener: findElement('.site-settings-nav'),
-    navCloser: findElement('.site-settings-close'),
-    navBlur: findElement('.site-settings-holder'),
+    // Header
+    soundToggle: findElement('#sound-toggle'),
+    themeToggle: findElement('#theme-toggle'),
+    settingsOpen: findElement('#settings-open'),
 
+    // Game
+    game: findElement('.game'),
+    sides: findElements('.scoreboard .side'),
+    status: findElement('#game-status'),
+    statusText: findElement('#game-status > span'),
+    board: findElement('.board'),
+    gridCanvas: findElement('.board-grid'),
+    marksCanvas: findElement('.board-marks'),
+    cells: findElements('#cells .cell'),
+    cellsHolder: findElement('#cells'),
+    controls: findElement('.controls'),
+    undo: findElement('#undo'),
+    redo: findElement('#redo'),
+    newGame: findElement('#new-game'),
+    newGameLabel: findElement('#new-game .ctrl-label'),
+    opponent: findElement('#opponent'),
 
-    // Message & XMessage Elements
-    message: findElement('.message'),
-    messageHolder: findElement('.message-holder'),
-    msgX: findElement('#mess-cancel'),
-    msgBlur: findElement('.message-blur'),
-
-
-    // Small Message Elements
-    smallMessageHolder: findElement('.small-message-holder'),
-    smallMessage: findElement('.small-message'),
-    smallMsgX: findElement('#small-mess-cancel'),
-    smallMsgBlur: findElement('.small-message-blur'),
-
-    // Settings Elements
+    // Settings
+    settings: findElement('#settings'),
+    settingsClose: findElement('#settings-close'),
     settName: findElement('#sett-name'),
     settXname: findElement('#sett-xname'),
-    settLetter: findElement('.sett-letter-cont'),
-    settDifficulty: findElement('.sett-difficulty-cont'),
-    settNumbOPlay: findElement('.sett-numb-cont'),
-    settFirstMove: findElement('.sett-firstm-cont'),
-    settSave: findElement('#sett-save-sett'),
-
-    // Stats Elements
+    settLetter: findElement('#sett-letter'),
+    settFirst: findElement('#sett-first'),
     statsTable: findElement('#stats-table'),
     statsReset: findElement('#stats-reset'),
 
-    // Board Elements
-    boardBody: findElement('#board-body'),
-    boardUndo: findElement('.board-undo'),
-    boardRedo: findElement('.board-redo'),
-    boardReset: findElement('.board-reset'),
-    boardName: findElement('.board-name'),
-    boardXname: findElement('.board-xname'),
-    boardDraws: findElement('.board-draws'),
-    boardCover: findElement('.board-cover'),
-    gameStatus: findElement('#game-status'),
-    gameHolder: findElement('.game-holder'),
-    boardStrike: findElement('.board-strike'),
+    // Toast
+    toast: findElement('#toast'),
+    toastText: findElement('.toast-text'),
+    toastAction: findElement('.toast-action'),
+    toastClose: findElement('.toast-close'),
+
+    // Canvases that sit behind and above the page
+    backdrop: findElement('.backdrop'),
+    dust: findElement('.dust'),
+  }
+
+  let toastTimer = null
+
+  let toastRun = null
+
+  const hideToast = function () {
+
+    clearTimeout(toastTimer)
+
+    UIVars.toast.classList.remove('show')
+
+  }
+
+  /* A short note at the bottom of the page.
+     action: { label, run } adds one button that does something about it. */
+  const showToast = function (message, time, action) {
+
+    // The open settings drawer is modal: nothing outside it can be seen
+    // clearly or pressed, so the note goes inside it.
+    const home = UIVars.settings.open ? UIVars.settings : document.body
+
+    if (UIVars.toast.parentElement !== home) { home.appendChild(UIVars.toast) }
+
+    UIVars.toastText.textContent = message
+
+    toastRun = action ? action.run : null
+
+    UIVars.toastAction.hidden = !action
+
+    UIVars.toastAction.textContent = action ? action.label : ''
+
+    UIVars.toast.classList.add('show')
+
+    // A newer note must not be closed by an older note's timer
+    clearTimeout(toastTimer)
+
+    toastTimer = setTimeout(hideToast, time || 3000)
+
+  }
+
+  UIVars.toastClose.addEventListener('click', hideToast)
+
+  UIVars.toastAction.addEventListener('click', () => {
+
+    const run = toastRun
+
+    hideToast()
+
+    if (run) { run() }
+
+  })
+
+  // Ticks the radio button in a group that carries a value
+  const setChoice = function (group, value) {
+
+    Array.from(group.querySelectorAll('input')).forEach((input) => {
+
+      input.checked = input.value === value
+
+    })
+
   }
 
   return {
@@ -513,31 +361,730 @@ const UICtrl = (function () {
 
     findElements: (tag) => findElements(tag),
 
-    addClass: (element, clas) => addClass(element, clas),
+    showToast: (message, time, action) => showToast(message, time, action),
 
-    toggleClass: (element, clas) => toggleClass(element, clas),
+    hideToast: () => hideToast(),
 
-    removeClass: (element, clas) => removeClass(element, clas),
-
-    tabilize: (tabHolder, elementHolder, tabName, elementName) =>
-      tabilize(tabHolder, elementHolder, tabName, elementName),
-
-    sendMessage: (message) => sendMessage(message),
-
-    removeMessage: () => removeMessage(),
-
-    resetState: () => resetState(),
-
-    sendSmallMessage: (message, time) => sendSmallMessage(message, time),
-
-    removeSmallMessage: () => removeSmallMessage(),
+    setChoice: (group, value) => setChoice(group, value),
 
   }
 })();
 
 
-// API Controller
+// Drawing Controller
+const DrawCtrl = (function () {
+
+  const UIVars = UICtrl.UIVars
+
+  // The board is 300 units across: three squares of 100
+  const UNITS = 300
+
+  const THEMES = {
+    board: { material: 'chalk', grain: 0.62, softGrain: 0.36, themeColor: '#24302d' },
+    paper: { material: 'pencil', grain: 0.42, softGrain: 0.2, themeColor: '#f7f8fa' }
+  }
+
+  // A new set of wobbles for the grid and the surface on every visit
+  const pageSeed = Math.floor(Math.random() * 1e9)
+
+  let grid = null
+
+  let marks = null
+
+  let backdrop = null
+
+  let tallies = []
+
+  let colors = { ink: '#f2efe4', x: '#8fd3f7', o: '#f8c66a' }
+
+  const grains = {}
+
+  // What is on the marks canvas right now
+  const shown = { seed: null, cells: ['', '', '', '', '', '', '', '', ''], strike: '' }
+
+  let lastBoard = null
+
+  let lastScores = null
+
+  const themeName = () => UIVars.html.dataset.theme === 'paper' ? 'paper' : 'board'
+
+  const centre = (index) => [(index % 3) * 100 + 50, Math.floor(index / 3) * 100 + 50]
+
+  const letterColor = (letter) => letter === 'X' ? colors.x : (letter === 'O' ? colors.o : colors.ink)
+
+  // Where the board is on screen. Measuring forces the browser to lay
+  // the page out, so it is only done again after a resize or a scroll.
+  let boardBox = null
+
+  const forgetBoardBox = function () { boardBox = null }
+
+  // Lets dust fall from where the chalk is, given a point on the board
+  const dustFrom = function (color, amount) {
+
+    if (!boardBox) { boardBox = UIVars.marksCanvas.getBoundingClientRect() }
+
+    const box = boardBox
+
+    return (x, y) => Sketch.dust.puff(box.left + x / UNITS * box.width, box.top + y / UNITS * box.height, color, amount)
+
+  }
+
+  // ---- The grid
+
+  const drawGrid = function (animated) {
+
+    grid.clear()
+
+    const rand = Sketch.random(pageSeed)
+
+    const lean = () => (rand() - 0.5) * 5
+
+    const lines = [
+      [100 + lean(), 7, 100 + lean(), 293],
+      [200 + lean(), 6, 200 + lean(), 294],
+      [7, 100 + lean(), 293, 100 + lean()],
+      [6, 200 + lean(), 294, 200 + lean()]
+    ]
+
+    lines.forEach((l, i) => {
+
+      grid.stroke(Sketch.line(rand, l[0], l[1], l[2], l[3]), {
+        color: colors.ink,
+        width: Sketch.material().width * 0.8,
+        strength: 0.9,
+        seed: Sketch.hash(pageSeed, i),
+        instant: !animated,
+        duration: 420,
+        delay: 150 + i * 170,
+        onMove: animated ? dustFrom(colors.ink, 1) : null
+      })
+
+    })
+
+  }
+
+  // ---- Marks
+
+  const drawMark = function (index, letter, seed, animated, delay) {
+
+    const rand = Sketch.random(Sketch.hash(seed, index, letter === 'X' ? 1 : 2))
+
+    const [cx, cy] = centre(index).map(v => v + (rand() - 0.5) * 6)
+
+    const color = letterColor(letter)
+
+    const base = { color: color, instant: !animated, onMove: animated ? dustFrom(color, 1) : null }
+
+    if (letter === 'X') {
+
+      const reach = 28
+
+      const j = () => (rand() - 0.5) * 9
+
+      const first = Sketch.line(rand, cx - reach + j(), cy - reach + j(), cx + reach + j(), cy + reach + j())
+
+      const second = Sketch.line(rand, cx + reach + j(), cy - reach + j(), cx - reach + j(), cy + reach + j())
+
+      marks.stroke(first, Object.assign({}, base, {
+        seed: Sketch.hash(seed, index, 11), duration: 150, delay: delay,
+        onStart: () => Sound.scratch(0.15)
+      }))
+
+      marks.stroke(second, Object.assign({}, base, {
+        seed: Sketch.hash(seed, index, 12), duration: 150, delay: delay + 210,
+        onStart: () => Sound.scratch(0.15)
+      }))
+
+    } else {
+
+      marks.stroke(Sketch.ring(rand, cx, cy, 29, 29), Object.assign({}, base, {
+        seed: Sketch.hash(seed, index, 13), duration: 380, delay: delay,
+        onStart: () => Sound.scratch(0.38)
+      }))
+
+    }
+
+  }
+
+  // The line through three in a row
+  const drawStrike = function (line, letter, seed, animated, delay) {
+
+    const rand = Sketch.random(Sketch.hash(seed, line[0], line[2], 5))
+
+    const [x1, y1] = centre(line[0])
+
+    const [x2, y2] = centre(line[2])
+
+    const dx = (x2 - x1) * 0.2
+
+    const dy = (y2 - y1) * 0.2
+
+    const j = () => (rand() - 0.5) * 7
+
+    const color = letterColor(letter)
+
+    marks.stroke(Sketch.line(rand, x1 - dx + j(), y1 - dy + j(), x2 + dx + j(), y2 + dy + j(), 0.7), {
+      color: color,
+      width: Sketch.material().width * 1.2,
+      seed: Sketch.hash(seed, line[0], line[2], 6),
+      instant: !animated,
+      duration: 430,
+      delay: delay,
+      onStart: () => Sound.scratch(0.43, 1.3),
+      onMove: animated ? dustFrom(color, 4) : null
+    })
+
+  }
+
+  const eraseCell = function (index, animated) {
+
+    const rand = Sketch.random(Sketch.hash(shown.seed || 1, index, 21))
+
+    const x = (index % 3) * 100
+
+    const y = Math.floor(index / 3) * 100
+
+    marks.rub(Sketch.scrub(rand, x + 20, y + 22, 60, 56, 3), {
+      width: 50, color: colors.ink, instant: !animated, duration: 260,
+      onStart: () => Sound.wipe(0.26)
+    })
+
+  }
+
+  const wipeBoard = function (animated) {
+
+    const rand = Sketch.random(Sketch.hash(shown.seed || 1, 31))
+
+    marks.rub(Sketch.scrub(rand, 14, 18, 272, 264, 6), {
+      width: 104, color: colors.ink, instant: !animated, duration: WIPE_TIME,
+      onStart: () => Sound.wipe(WIPE_TIME / 1000)
+    })
+
+  }
+
+  const WIPE_TIME = 460
+
+  /* Makes the marks canvas match a board, drawing what is new and
+     rubbing out what is gone. A board with a new seed is a new game,
+     so the old one is wiped first. */
+  const sync = function (board, instant) {
+
+    const animated = !instant && !Sketch.still()
+
+    let delay = 0
+
+    lastBoard = board
+
+    if (shown.seed !== null && shown.seed !== board.seed) {
+
+      Sketch.flush(marks)
+
+      if (shown.cells.some(cell => cell !== '')) {
+
+        wipeBoard(animated)
+
+        delay = animated ? WIPE_TIME : 0
+
+      }
+
+      shown.cells.fill('')
+
+      shown.strike = ''
+
+    }
+
+    shown.seed = board.seed
+
+    // Finish whatever is still being drawn or rubbed out before changing
+    // the board again, so a late stroke cannot land on a square that has
+    // since been emptied, and an eraser cannot pass over a new mark.
+    if (!delay && board.boardPoints.some((letter, index) => shown.cells[index] !== letter)) {
+
+      Sketch.flush(marks)
+
+    }
+
+    let rubbed = false
+
+    board.boardPoints.forEach((letter, index) => {
+
+      if (shown.cells[index] === letter) { return }
+
+      if (shown.cells[index] !== '') {
+
+        // One eraser sound is enough when two marks go at once
+        eraseCell(index, animated && !rubbed)
+
+        rubbed = true
+
+      }
+
+      if (letter !== '') { drawMark(index, letter, board.seed, animated, delay) }
+
+      shown.cells[index] = letter
+
+    })
+
+    const lines = board.result ? board.result.lines : []
+
+    const key = lines.map(line => line.join('')).join('|')
+
+    if (key !== shown.strike) {
+
+      lines.forEach((line, n) => {
+
+        drawStrike(line, board.result.winner, board.seed, animated, delay + STRIKE_DELAY + n * 260)
+
+      })
+
+      shown.strike = key
+
+    }
+
+  }
+
+  // The strike waits for the winning mark to be finished
+  const STRIKE_DELAY = 430
+
+  // ---- Tally marks: four uprights and a slash for every five
+
+  const TALLY = { gap: 8, bundle: 34, stride: 44 }
+
+  const tallyStrokes = function (surface, count, align) {
+
+    const h = surface.height
+
+    const full = Math.floor(count / 5)
+
+    const rest = count % 5
+
+    const bundles = full + (rest ? 1 : 0)
+
+    const lastWidth = rest ? (rest - 1) * TALLY.gap + 10 : TALLY.bundle
+
+    const total = Math.max(0, bundles - 1) * TALLY.stride + lastWidth
+
+    const start = align === 'left' ? 1 : (align === 'right' ? surface.width - total - 1 : (surface.width - total) / 2)
+
+    const strokes = []
+
+    for (let k = 0; k < count; k++) {
+
+      const rand = Sketch.random(Sketch.hash(77, k, align.length))
+
+      const x0 = start + Math.floor(k / 5) * TALLY.stride + 5
+
+      const j = () => (rand() - 0.5) * 2
+
+      if (k % 5 < 4) {
+
+        const x = x0 + (k % 5) * TALLY.gap
+
+        strokes.push(Sketch.line(rand, x + 1 + j(), 3 + j(), x - 1 + j(), h - 3 + j(), 0.6))
+
+      } else {
+
+        strokes.push(Sketch.line(rand, x0 - 5 + j(), h * 0.74 + j(), x0 + 3 * TALLY.gap + 5 + j(), h * 0.24 + j(), 0.6))
+
+      }
+
+    }
+
+    return strokes
+
+  }
+
+  const ALIGN = ['left', 'centre', 'right']
+
+  // What each tally canvas shows now, so a move that changes no score
+  // does not redraw them
+  const tallyShown = ['', '', '']
+
+  const drawTally = function (i, animateNew) {
+
+    const surface = tallies[i]
+
+    const side = UIVars.sides[i]
+
+    const count = lastScores.counts[i]
+
+    const letter = lastScores.letters[i]
+
+    const key = `${count}|${letter}|${Sketch.material().name}`
+
+    if (key === tallyShown[i]) { return }
+
+    tallyShown[i] = key
+
+    side.querySelector('.count').textContent = count
+
+    surface.clear()
+
+    // More marks than there is room for are shown as a number instead
+    const capacity = Math.floor((surface.width + 8) / TALLY.stride) * 5
+
+    side.classList.toggle('as-number', count > capacity)
+
+    if (count > capacity) { return }
+
+    const strokes = tallyStrokes(surface, count, ALIGN[i])
+
+    strokes.forEach((points, k) => {
+
+      const fresh = animateNew && k === count - 1 && !Sketch.still()
+
+      surface.stroke(points, {
+        color: letterColor(letter),
+        width: Math.max(3.2, Sketch.material().width * 0.42),
+        strength: letter ? 1 : 0.75,
+        seed: Sketch.hash(78, k, i),
+        instant: !fresh,
+        duration: 200,
+        delay: TALLY_DELAY,
+        onStart: () => Sound.scratch(0.2, 0.7)
+      })
+
+    })
+
+  }
+
+  // A new tally mark is drawn after the strike has landed
+  const TALLY_DELAY = 950
+
+  /* counts: [yours, draws, theirs]. letters: whose colour each is drawn
+     in ('' for draws). animate: the index that just went up, if any. */
+  const setScores = function (counts, letters, animate) {
+
+    lastScores = { counts: counts, letters: letters }
+
+    tallies.forEach((surface, i) => drawTally(i, animate === i))
+
+  }
+
+  // Measures the tally canvases again and redraws them, after anything
+  // that changes their size or colour
+  const refitTallies = function () {
+
+    tallies.forEach((surface, i) => {
+
+      // A canvas hidden behind a number has no size to measure
+      UIVars.sides[i].classList.remove('as-number')
+
+      surface.fit()
+
+      tallyShown[i] = ''
+
+    })
+
+    if (lastScores) { tallies.forEach((surface, i) => drawTally(i, false)) }
+
+  }
+
+  // ---- The surface behind everything: wipe marks and old games
+
+  const miniGame = function (rand, ox, oy, size, angle) {
+
+    const turn = (x, y) => {
+
+      const px = (x - 0.5) * size
+
+      const py = (y - 0.5) * size
+
+      return [ox + px * Math.cos(angle) - py * Math.sin(angle), oy + px * Math.sin(angle) + py * Math.cos(angle)]
+
+    }
+
+    const seg = (x1, y1, x2, y2) => {
+
+      const a = turn(x1, y1)
+
+      const b = turn(x2, y2)
+
+      return Sketch.line(rand, a[0], a[1], b[0], b[1])
+
+    }
+
+    const width = Math.max(2.2, size * 0.028)
+
+    const pen = (points) => backdrop.stroke(points, {
+      color: colors.ink, width: width, strength: 0.5, seed: Math.floor(rand() * 1e9), instant: true
+    })
+
+    ;[1 / 3, 2 / 3].forEach((t) => {
+
+      pen(seg(t, 0.02, t, 0.98))
+
+      pen(seg(0.02, t, 0.98, t))
+
+    })
+
+    // Somebody's unfinished game
+    const squares = [0, 1, 2, 3, 4, 5, 6, 7, 8].sort(() => rand() - 0.5).slice(0, 4 + Math.floor(rand() * 3))
+
+    squares.forEach((square, n) => {
+
+      const cx = (square % 3 + 0.5) / 3
+
+      const cy = (Math.floor(square / 3) + 0.5) / 3
+
+      if (n % 2 === 0) {
+
+        pen(seg(cx - 0.09, cy - 0.09, cx + 0.09, cy + 0.09))
+
+        pen(seg(cx + 0.09, cy - 0.09, cx - 0.09, cy + 0.09))
+
+      } else {
+
+        const c = turn(cx, cy)
+
+        pen(Sketch.ring(rand, c[0], c[1], size * 0.095, size * 0.095))
+
+      }
+
+    })
+
+    // Rubbed out, but not well
+    const sweep = []
+
+    for (let i = 0; i < 4; i++) {
+
+      const t = i / 3
+
+      const a = turn(-0.1, t)
+
+      const b = turn(1.1, t + (rand() - 0.5) * 0.2)
+
+      if (i % 2 === 0) { sweep.push(a, b) } else { sweep.push(b, a) }
+
+    }
+
+    // Chalk smears when it is rubbed. Pencil mostly just fades.
+    backdrop.rub(sweep, {
+      width: size * 0.5, color: themeName() === 'board' ? colors.ink : '', strength: 0.3, instant: true
+    })
+
+  }
+
+  const drawBackdrop = function () {
+
+    backdrop.fit()
+
+    backdrop.clear()
+
+    const rand = Sketch.random(pageSeed + 3)
+
+    const w = backdrop.width
+
+    const h = backdrop.height
+
+    const chalk = themeName() === 'board'
+
+    // Broad passes of an eraser across the whole board
+    if (chalk) {
+
+      const passes = Math.round(5 + (w * h) / 220000)
+
+      for (let i = 0; i < passes; i++) {
+
+        const x = rand() * w
+
+        const y = rand() * h
+
+        const length = 220 + rand() * Math.max(w, h) * 0.55
+
+        const angle = (rand() - 0.5) * 1.1 + (rand() < 0.3 ? Math.PI / 2 : 0)
+
+        const a = [x - Math.cos(angle) * length / 2, y - Math.sin(angle) * length / 2]
+
+        const b = [x + Math.cos(angle) * length / 2, y + Math.sin(angle) * length / 2]
+
+        backdrop.stroke(Sketch.line(rand, a[0], a[1], b[0], b[1], 14), {
+          color: colors.ink, width: 90 + rand() * 170, strength: 0.006 + rand() * 0.008,
+          soft: true, seed: Math.floor(rand() * 1e9), instant: true
+        })
+
+      }
+
+    }
+
+    // Old games in the margins, where there is room beside the game
+    const gameBox = UIVars.game.getBoundingClientRect()
+
+    const spots = [
+      [0, gameBox.left, 0.3], [gameBox.right, w - gameBox.right, 0.24],
+      [0, gameBox.left, 0.78], [gameBox.right, w - gameBox.right, 0.74]
+    ]
+
+    spots.forEach(([from, room, down]) => {
+
+      // Always take the same number of random values, so the games that
+      // are drawn do not change when others are left out
+      const skip = rand() < 0.38
+
+      const size = Math.min(room * 0.62, 105 + rand() * 95)
+
+      const x = from + room * (0.42 + rand() * 0.16)
+
+      const y = h * (down + (rand() - 0.5) * 0.1)
+
+      const angle = (rand() - 0.5) * 0.5
+
+      const seed = Math.floor(rand() * 1e9)
+
+      if (skip || room < 190) { return }
+
+      miniGame(Sketch.random(seed), x, y, size, angle)
+
+    })
+
+  }
+
+  // ---- Themes and sizes
+
+  // Redraws every canvas from what the game last asked for
+  const redraw = function () {
+
+    grid.fit()
+
+    marks.fit()
+
+    drawGrid(false)
+
+    marks.clear()
+
+    shown.seed = null
+
+    shown.cells.fill('')
+
+    shown.strike = ''
+
+    if (lastBoard) { sync(lastBoard, true) }
+
+    refitTallies()
+
+  }
+
+  const applyTheme = function () {
+
+    const name = themeName()
+
+    const theme = THEMES[name]
+
+    Sketch.setMaterial(theme.material)
+
+    Sound.setVoice(theme.material)
+
+    if (!grains[name]) {
+
+      grains[name] = [Sketch.grain(theme.grain, 11), Sketch.grain(theme.softGrain, 23)]
+
+    }
+
+    UIVars.html.style.setProperty('--grain', `url(${grains[name][0]})`)
+
+    UIVars.html.style.setProperty('--grain-soft', `url(${grains[name][1]})`)
+
+    if (UIVars.themeColor) { UIVars.themeColor.setAttribute('content', theme.themeColor) }
+
+    const style = getComputedStyle(UIVars.html)
+
+    colors = {
+      ink: style.getPropertyValue('--ink').trim(),
+      x: style.getPropertyValue('--x').trim(),
+      o: style.getPropertyValue('--o').trim()
+    }
+
+  }
+
+  const setTheme = function () {
+
+    applyTheme()
+
+    redraw()
+
+    drawBackdrop()
+
+  }
+
+  const init = function (animateGrid) {
+
+    grid = Sketch.createSurface(UIVars.gridCanvas, UNITS)
+
+    marks = Sketch.createSurface(UIVars.marksCanvas, UNITS)
+
+    backdrop = Sketch.createSurface(UIVars.backdrop, 0, 1.5)
+
+    tallies = UIVars.sides.map(side => Sketch.createSurface(side.querySelector('canvas')))
+
+    Sketch.dust.attach(UIVars.dust)
+
+    applyTheme()
+
+    grid.fit()
+
+    marks.fit()
+
+    refitTallies()
+
+    drawGrid(animateGrid)
+
+    drawBackdrop()
+
+    // Canvases are bitmaps: when their size on screen changes, draw again
+    let boardSize = UIVars.board.getBoundingClientRect().width
+
+    let timer = null
+
+    window.addEventListener('resize', () => {
+
+      const size = UIVars.board.getBoundingClientRect().width
+
+      forgetBoardBox()
+
+      if (size !== boardSize) {
+
+        boardSize = size
+
+        redraw()
+
+      } else {
+
+        refitTallies()
+
+      }
+
+      clearTimeout(timer)
+
+      timer = setTimeout(drawBackdrop, 180)
+
+    })
+
+    window.addEventListener('scroll', forgetBoardBox, { passive: true })
+
+  }
+
+  return {
+
+    init: (animateGrid) => init(animateGrid),
+
+    sync: (board, instant) => sync(board, instant),
+
+    setScores: (counts, letters, animate) => setScores(counts, letters, animate),
+
+    setTheme: () => setTheme(),
+
+    WIPE_TIME: WIPE_TIME,
+
+    STRIKE_DELAY: STRIKE_DELAY,
+
+  }
+})();
+
+
+// Board Controller
 const BoardCtrl = (function () {
+
+  const UIVars = UICtrl.UIVars
 
   // Every row, column and diagonal, as board indexes (row-major)
   const WIN_LINES = [
@@ -546,2529 +1093,747 @@ const BoardCtrl = (function () {
     [0, 4, 8], [2, 4, 6]
   ]
 
-  const newBoard = function () {
+  const LEVELS = ['easy', 'medium', 'hard']
 
-    const board = {
+  const other = (letter) => letter === 'X' ? 'O' : 'X'
 
-      name: UserCtrl.getData('name'),
+  const getBoard = () => UserCtrl.getData('board')
 
-      xname: UserCtrl.getData('xname'),
+  const saveBoard = (board) => UserCtrl.setData('board', board)
 
-      playerLetter: UserCtrl.getData('letter'),
+  // ---- Boards
 
-      difficulty: UserCtrl.getData('difficulty'),
+  // fresh: the settings just changed, so nobody is owed the first move
+  const newBoard = function (fresh) {
 
-      numbPlay: UserCtrl.getData('numb players'),
+    const previous = fresh ? null : getBoard()
 
-      firstMove: (() => {
+    const letter = UserCtrl.getData('letter') === 'O' ? 'O' : 'X'
 
-        let firstmove = UserCtrl.getData('first move')
+    // 'XO' means take turns: whoever did not start the last game starts
+    let first = UserCtrl.getData('first move')
 
-        if (UserCtrl.getData('first move') === 'XO') {
+    if (first !== 'X' && first !== 'O') {
 
-          if (UserCtrl.getData('board').hasOwnProperty('firstMove')) {
+      const last = previous ? previous.firstMove : ''
 
-            firstmove = UserCtrl.getData('board').firstMove == 'X' ? 'O' : 'X'
+      first = (last === 'X' || last === 'O') ? other(last) : letter
 
-          } else {
+    }
 
-            firstmove = UserCtrl.getData('letter')
+    return {
 
-          }
+      playerLetter: letter,
 
-        }
+      difficulty: LEVELS.includes(UserCtrl.getData('difficulty')) ? UserCtrl.getData('difficulty') : 'easy',
 
-        return firstmove
-      })(),
+      numbPlay: UserCtrl.getData('numb players') === 'two' ? 'two' : 'one',
 
+      firstMove: first,
+
+      // Each move is [who, letter, square, order]
       playingPoints: [],
 
       redoPoints: [],
 
       boardPoints: ['', '', '', '', '', '', '', '', ''],
 
-      turn: (() => {
+      turn: first,
 
-        let firstmove = UserCtrl.getData('first move')
+      // Set when the game ends: { winner: 'X' | 'O' | 'draw', lines: [] }
+      result: null,
 
-        if (UserCtrl.getData('first move') === 'XO') {
+      won: false,
 
-          if (UserCtrl.getData('board').hasOwnProperty('firstMove')) {
-
-            firstmove = UserCtrl.getData('board').firstMove == 'X' ? 'O' : 'X'
-
-          } else {
-
-            firstmove = UserCtrl.getData('letter')
-
-          }
-
-        }
-
-        const item = firstmove === UserCtrl.getData('letter')
-
-        let ment = item ? UserCtrl.getData('name') : UserCtrl.getData('xname')
-
-        return ment
-      })(),
+      // Decides how the marks of this game wobble
+      seed: Math.floor(Math.random() * 1e9),
 
       legitBoard: true,
 
-      won: false
+      version: 2
 
     }
 
-    return board
-
   }
 
+  // Returns the saved board if it can be played on, or a new one
   const verifyBoard = function (board) {
 
     try {
 
-      if (board.hasOwnProperty('legitBoard')) {
+      const points = board.boardPoints
 
-        if (board.legitBoard) {
+      const sound = board.legitBoard === true && Array.isArray(points) && points.length === 9 &&
+        points.every(item => item === '' || item === 'X' || item === 'O') &&
+        Array.isArray(board.playingPoints) && Array.isArray(board.redoPoints) &&
+        (board.playerLetter === 'X' || board.playerLetter === 'O')
 
-          // Board is OK
+      if (!sound) { return newBoard() }
 
-        } else {
+      if (board.version === 2) {
 
-          board = newBoard()
-
-        }
-
-      } else {
-
-        board = newBoard()
+        return (board.turn === 'X' || board.turn === 'O') ? board : newBoard()
 
       }
+
+      // A game saved by the earlier version of this page, which kept the
+      // turn as a player's name. One that had ended was already counted,
+      // so start afresh. One in progress is carried over.
+      if (board.won || evaluate(board)) { return newBoard() }
+
+      board.turn = board.turn === board.name ? board.playerLetter : other(board.playerLetter)
+
+      board.result = null
+
+      board.won = false
+
+      board.seed = Math.floor(Math.random() * 1e9)
+
+      board.version = 2
+
+      return board
 
     } catch (e) {
 
-      console.warn(e)
-
-      board = newBoard()
+      return newBoard()
 
     }
 
-    return board
+  }
+
+  // ---- Who is who
+
+  const nameOf = function (board, letter) {
+
+    return UserCtrl.getData(letter === board.playerLetter ? 'name' : 'xname')
 
   }
 
-  const getUIBoard = function () {
+  const isComputerTurn = function (board) {
 
-    let board = Array.from(UICtrl.UIVars.boardBody.children)
+    return !board.won && board.numbPlay === 'one' && board.turn !== board.playerLetter
 
-    board = board.map((item) => Array.from(item.children))
-
-    const newBoard = []
-
-    board.forEach((item) => { item.forEach((nx) => { newBoard.push(nx) }) })
-
-    return newBoard
   }
 
-  const fillBoard = function () {
+  const saysYou = (name) => name.trim().toLowerCase() === 'you'
 
-    let board = UserCtrl.getData('board')
+  // Which statistics a game counts toward: a level, or 'friend'
+  const tableOf = (board) => board.numbPlay === 'two' ? 'friend' : board.difficulty
 
-    const UIBoard = getUIBoard()
+  // ---- The score of this visit
 
-    board = verifyBoard(board)
+  const visitScore = function (table) {
 
-    const boardX = board.boardPoints
+    const score = StorageCtrl.getVisit()[table]
 
-    boardX.forEach((item, index) => {
+    return Array.isArray(score) && score.length === 3 ? score : [0, 0, 0]
 
-      if (item === "") {
+  }
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-F')
+  // column: 0 you won, 1 they won, 2 draw
+  const count = function (board, column) {
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-D')
+    const table = tableOf(board)
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-E')
+    const stats = UserCtrl.getData(`stat ${table}`).slice()
 
-        if (UIBoard[index].innerHTML === "") {
-          UIBoard[index].innerHTML = boardVars.emptySocket
-        }
+    stats[column]++
 
-        UICtrl.addClass(UIBoard[index], 'hide')
+    UserCtrl.setData(`stat ${table}`, stats)
 
-        setTimeout(() => {
+    const visit = StorageCtrl.getVisit()
 
-          UICtrl.removeClass(UIBoard[index], 'hide')
+    visit[table] = visitScore(table)
 
-          UIBoard[index].innerHTML = boardVars.emptySocket
+    visit[table][column]++
 
-          UICtrl.removeClass(UIBoard[index], 'i-am-x')
+    // Wins in a row against the computer, for the nudge to move up
+    const streaks = visit.streaks || {}
 
-          UICtrl.removeClass(UIBoard[index], 'i-am-o')
+    streaks[table] = column === 0 ? (streaks[table] || 0) + 1 : 0
 
-        }, 500)
+    visit.streaks = streaks
 
-      } else if (item === "X") {
+    StorageCtrl.setVisit(visit)
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-F')
+    return streaks[table]
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-E')
+  }
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-D')
+  // ---- Rules
 
-        if (!UIBoard[index].classList.contains('i-am-x')) {
+  const evaluate = function (board) {
 
-          UIBoard[index].innerHTML = boardVars.xSocket
+    const p = board.boardPoints
 
-          UICtrl.removeClass(UIBoard[index], 'i-am-o')
+    const lines = WIN_LINES.filter(line => p[line[0]] !== '' &&
+      p[line[0]] === p[line[1]] && p[line[1]] === p[line[2]])
 
-          UICtrl.addClass(UIBoard[index], 'i-am-x')
+    // One move can complete two lines at once. Both are struck.
+    if (lines.length) { return { winner: p[lines[0][0]], lines: lines } }
 
-        }
+    if (!p.includes('')) { return { winner: 'draw', lines: [] } }
 
-      } else if (item === "O") {
+    return null
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-F')
+  }
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-E')
+  const place = function (board, index, letter) {
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-D')
+    board.boardPoints[index] = letter
 
-        if (!UIBoard[index].classList.contains('i-am-o')) {
+    board.playingPoints.push([nameOf(board, letter), letter, index, board.playingPoints.length])
 
-          UIBoard[index].innerHTML = boardVars.oSocket
+    board.turn = other(letter)
 
-          UICtrl.removeClass(UIBoard[index], 'i-am-x')
+  }
 
-          UICtrl.addClass(UIBoard[index], 'i-am-o')
+  let thinking = null
 
-        }
+  // What follows the end of a game a moment later: the chime, the nudge
+  let endTimer = null
 
-      } else if (item === "E") {
+  let nudgeTimer = null
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-x')
+  // Taps on the board are ignored until this time (performance.now)
+  let lockedUntil = 0
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-o')
+  let nudged = false
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-F')
+  /* Called after any change to the board. Ends the game if it is over,
+     saves, draws, and lets the computer take its turn. */
+  const afterMove = function (board) {
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-D')
+    const result = board.won ? null : evaluate(board)
 
-        UICtrl.addClass(UIBoard[index], 'i-am-E')
+    let scored
 
-      } else if (item === "D") {
+    if (result) {
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-x')
+      board.result = result
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-o')
+      board.won = true
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-E')
+      const column = result.winner === 'draw' ? 2 : (result.winner === board.playerLetter ? 0 : 1)
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-F')
+      const streak = count(board, column)
 
-        UICtrl.addClass(UIBoard[index], 'i-am-D')
+      // Scoreboard order is you, draws, them
+      scored = [0, 2, 1][column]
 
-      } else if (item === "F") {
+      // Long enough to see how it ended before a tap starts the next game
+      lockedUntil = performance.now() + 900
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-x')
+      endSounds(board, result)
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-o')
+      suggestHarder(board, column, streak)
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-E')
+    }
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-D')
+    saveBoard(board)
 
-        UICtrl.addClass(UIBoard[index], 'i-am-F')
+    render(board, { scored: scored })
 
-      } else {
+    // The statistics may be on screen in the settings drawer
+    if (result) { App.showStats() }
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-D')
+    if (isComputerTurn(board)) { computerTurn() }
 
-        UICtrl.removeClass(UIBoard[index], 'i-am-E')
+  }
 
-        if (UIBoard[index].innerHTML === "") {
-          UIBoard[index].innerHTML = boardVars.emptySocket
-        }
+  const endSounds = function (board, result) {
 
-        UICtrl.addClass(UIBoard[index], 'hide')
+    const lost = board.numbPlay === 'one' && result.winner === other(board.playerLetter)
 
-        setTimeout(() => {
+    const kind = result.winner === 'draw' ? 'draw' : (lost ? 'lose' : 'win')
 
-          UICtrl.removeClass(UIBoard[index], 'hide')
+    clearTimeout(endTimer)
 
-          UIBoard[index].innerHTML = boardVars.emptySocket
+    endTimer = setTimeout(() => {
 
-          UICtrl.removeClass(UIBoard[index], 'i-am-x')
+      Sound.chime(kind)
 
-          UICtrl.removeClass(UIBoard[index], 'i-am-o')
+      if (Sound.isEnabled() && navigator.vibrate) {
 
-        }, 500)
+        navigator.vibrate(kind === 'win' ? [12, 70, 24] : 18)
 
       }
 
-    });
-
-    updateScoreboard(board)
-
-    updateCellLabels(board)
-
-    updateStatus(board)
-
-    updateStrike(board)
-
-    UICtrl.addClass(UICtrl.UIVars.boardCover, 'cover')
-
-    setTimeout(() => {
-
-      UICtrl.removeClass(UICtrl.UIVars.boardCover, 'cover')
-
-    }, 700);
-
-    redoUndoStatus()
+    }, Sketch.still() ? 0 : DrawCtrl.STRIKE_DELAY + 200)
 
   }
 
-  // Scoreboard, turn highlight, accessible labels and status line
-  const letterChip = function (letter) {
+  // After three wins in a row against the computer, offer the next level
+  const suggestHarder = function (board, column, streak) {
 
-    return `<span class="letter letter-${letter.toLowerCase()}" aria-hidden="true">${letter}</span>`
+    const level = LEVELS.indexOf(board.difficulty)
 
-  }
+    if (nudged || board.numbPlay !== 'one' || column !== 0 || streak < 3 || level === LEVELS.length - 1) { return }
 
-  const updateScoreboard = function (board) {
+    const next = LEVELS[level + 1]
 
-    const letter = board.playerLetter === 'O' ? 'O' : 'X'
+    const label = next[0].toUpperCase() + next.slice(1)
 
-    const xletter = letter === 'X' ? 'O' : 'X'
+    clearTimeout(nudgeTimer)
 
-    const total = UserCtrl.getData('stat total')
+    nudgeTimer = setTimeout(() => {
 
-    UICtrl.UIVars.boardName.innerHTML = `
-      <span class="who">${letterChip(letter)}<span class="who-name">${escapeHtml(board.name)}</span></span><span class="score">${total[0]}</span>
-    `
+      // Once a visit is enough
+      nudged = true
 
-    UICtrl.UIVars.boardXname.innerHTML = `
-      <span class="who">${letterChip(xletter)}<span class="who-name">${escapeHtml(board.xname)}</span></span><span class="score">${total[1]}</span>
-    `
-
-    UICtrl.UIVars.boardDraws.innerHTML = `
-      <span class="who"><span class="who-name">Draws</span></span><span class="score">${total[2]}</span>
-    `
-
-    const over = isGameOver(board)
-
-    const nameTurn = board.turn === board.name
-
-    UICtrl.UIVars.boardName.classList.toggle('is-turn', !over && nameTurn)
-
-    UICtrl.UIVars.boardName.classList.toggle('side-x', letter === 'X')
-
-    UICtrl.UIVars.boardName.classList.toggle('side-o', letter === 'O')
-
-    UICtrl.UIVars.boardXname.classList.toggle('side-x', xletter === 'X')
-
-    UICtrl.UIVars.boardXname.classList.toggle('side-o', xletter === 'O')
-
-    UICtrl.UIVars.boardXname.classList.toggle('is-turn', !over && !nameTurn)
-
-  }
-
-  const isGameOver = function (board) {
-
-    return board.boardPoints.some(item => ['E', 'D', 'F'].includes(item))
-
-  }
-
-  const updateCellLabels = function (board) {
-
-    const states = { '': 'empty', X: 'X', O: 'O', E: 'X, winning cell', D: 'O, winning cell', F: 'draw' }
-
-    getUIBoard().forEach((cell, index) => {
-
-      const state = states[board.boardPoints[index]] || 'empty'
-
-      cell.setAttribute('aria-label',
-        `Row ${Math.floor(index / 3) + 1}, column ${(index % 3) + 1}: ${state}`)
-
-      cell.setAttribute('aria-disabled', board.boardPoints[index] !== '' || isGameOver(board))
-
-    })
-
-  }
-
-  const updateStatus = function (board) {
-
-    const status = UICtrl.UIVars.gameStatus
-
-    if (!status) { return }
-
-    let text = ''
-
-    let over = true
-
-    let turnLetter = ''
-
-    let result = ''
-
-    let waiting = false
-
-    if (board.boardPoints.includes('F')) {
-
-      text = 'The match ends in a tie'
-
-      result = 'draw'
-
-    } else if (board.boardPoints.includes('E') || board.boardPoints.includes('D')) {
-
-      const winLetter = board.boardPoints.includes('E') ? 'X' : 'O'
-
-      const winner = board.playerLetter === winLetter ? board.name : board.xname
-
-      text = `${winner} (${winLetter}) wins`
-
-      result = winLetter
-
-    } else {
-
-      over = false
-
-      const letter = board.turn === board.name ? board.playerLetter : (board.playerLetter === 'X' ? 'O' : 'X')
-
-      turnLetter = letter
-
-      waiting = board.numbPlay === 'one' && board.turn === board.xname
-
-      text = waiting
-        ? `${board.xname} is thinking...`
-        : `${board.turn}'s turn (${letter})`
-
-    }
-
-    status.textContent = text
-
-    status.classList.toggle('is-over', over)
-
-    UICtrl.UIVars.boardBody.parentElement.classList.toggle('is-over', over)
-
-    // Lets the stylesheet colour the board, status and hover preview
-    const holder = UICtrl.UIVars.gameHolder
-
-    if (holder) {
-
-      holder.dataset.turn = turnLetter
-
-      holder.dataset.result = result
-
-      holder.toggleAttribute('data-waiting', waiting)
-
-    }
-
-  }
-
-  // Strikes a line through every completed row, column or diagonal
-  const updateStrike = function (board) {
-
-    const strike = UICtrl.UIVars.boardStrike
-
-    if (!strike) { return }
-
-    const points = board.boardPoints
-
-    const lines = WIN_LINES.filter((line) =>
-      line.every(i => points[i] === 'E') || line.every(i => points[i] === 'D'))
-
-    const key = lines.map(line => points[line[0]] + line.join('')).join('|')
-
-    // Only redraw when the result changes so the stroke does not replay
-    if (strike.dataset.key === key) { return }
-
-    strike.dataset.key = key
-
-    // Board cells are 100 units square in the overlay's 300x300 viewBox
-    const centre = (i) => [(i % 3) * 100 + 50, Math.floor(i / 3) * 100 + 50]
-
-    strike.innerHTML = lines.map((line) => {
-
-      const [x1, y1] = centre(line[0])
-
-      const [x2, y2] = centre(line[2])
-
-      const dx = (x2 - x1) * 0.2
-
-      const dy = (y2 - y1) * 0.2
-
-      const letter = points[line[0]] === 'E' ? 'x' : 'o'
-
-      return `<line class="strike strike-${letter}" pathLength="1" x1="${x1 - dx}" y1="${y1 - dy}" x2="${x2 + dx}" y2="${y2 + dy}" />`
-
-    }).join('')
-
-  }
-
-  const checkForWin = function () {
-
-    const board = UserCtrl.getData('board')
-
-    const theBoard = board.boardPoints
-
-    const winLine = WIN_LINES.find(line => theBoard[line[0]] !== '' &&
-      theBoard[line[0]] === theBoard[line[1]] && theBoard[line[1]] === theBoard[line[2]])
-
-    const won = winLine !== undefined
-
-    let winner = won ? theBoard[winLine[0]] : ''
-
-    if (won) {
-
-      winner = board.playerLetter === winner ? board.name : board.xname
-
-      if (!board.won) {
-
-        endMessage(winner)
-
-        endAction(winner)
-
-        const xer = UserCtrl.getData('board')
-
-        xer.won = true
-
-        UserCtrl.setData('board', xer)
-
-      }
-
-    }
-
-  }
-
-  const endAction = function (winner) {
-
-    const board = UserCtrl.getData('board')
-
-    switch (winner) {
-
-      case board.name:
-
-        if (board.numbPlay === 'one') {
-
-          const stats = UserCtrl.getData(`stat ${board.difficulty}`)
-
-          stats[0]++
-
-          UserCtrl.setData(`stat ${board.difficulty}`, stats)
-
-        } else {
-
-          const stats = UserCtrl.getData(`stat friend`)
-
-          stats[0]++
-
-          UserCtrl.setData(`stat friend`, stats)
-
-        }
-
-        break;
-
-      case board.xname:
-
-        if (board.numbPlay === 'one') {
-
-          const stats = UserCtrl.getData(`stat ${board.difficulty}`)
-
-          stats[1]++
-
-          UserCtrl.setData(`stat ${board.difficulty}`, stats)
-
-        } else {
-
-          const stats = UserCtrl.getData(`stat friend`)
-
-          stats[1]++
-
-          UserCtrl.setData(`stat friend`, stats)
-
-        }
-
-        break;
-
-      case 'draw':
-
-        if (board.numbPlay === 'one') {
-
-          const stats = UserCtrl.getData(`stat ${board.difficulty}`)
-
-          stats[2]++
-
-          UserCtrl.setData(`stat ${board.difficulty}`, stats)
-
-        } else {
-
-          const stats = UserCtrl.getData(`stat friend`)
-
-          stats[2]++
-
-          UserCtrl.setData(`stat friend`, stats)
-
-        }
-
-        break;
-
-      default:
-        break;
-    }
-
-    // Find every completed line on a copy first. Marking cells in place
-    // would hide a second line that shares a cell with the first one.
-    const bp = board.boardPoints.slice()
-
-    WIN_LINES
-      .filter(item => bp[item[0]] !== '' && bp[item[0]] === bp[item[1]] && bp[item[1]] === bp[item[2]])
-      .forEach((item) => {
-
-        const mark = bp[item[0]] === 'X' ? 'E' : 'D'
-
-        item.forEach((index) => { board.boardPoints[index] = mark })
-
+      UICtrl.showToast(`Three wins in a row. Ready for ${label}?`, 9000, {
+        label: `Play ${label}`,
+        run: () => App.chooseOpponent(next)
       })
 
-    board.boardPoints.forEach((item, index) => {
-      if (winner === 'draw') { board.boardPoints[index] = 'F' }
-    })
-
-    UserCtrl.setData('board', board)
-
-    fillBoard()
-
-    setTimeout(() => {
-
-      const boards = verifyBoard(newBoard())
-
-      UserCtrl.setData('board', boards)
-
-      fillBoard()
-
-      checkComputerTurn()
-
-    }, 2000)
-
-  }
-
-  const endMessage = function (winner) {
-
-    const board = UserCtrl.getData('board')
-
-    let message = '';
-
-    switch (winner) {
-
-      case board.name:
-
-        if (board.numbPlay === 'one') {
-
-          if (board.difficulty === 'hard') {
-
-            message = `Congratulations, you have won`
-
-          } else {
-
-            const stats = UserCtrl.getData(`stat ${board.difficulty}`)
-
-            if (stats[0] >= (stats[1] + 10)) {
-
-              message = `Congratulations, you have won. Try increasing the diffiulty`
-
-            } else {
-
-              message = `Congratulations, you have won`
-
-            }
-
-          }
-
-        } else {
-
-          message = `Congratulations, ${board.name} have won, and ${board.xname} has lost`
-
-        }
-
-        break;
-
-      case board.xname:
-
-        if (board.numbPlay === 'one') {
-
-          if (board.difficulty === 'easy') {
-
-            message = `Unfortunately, you have lost`
-
-          } else {
-
-            const stats = UserCtrl.getData(`stat ${board.difficulty}`)
-
-            if (stats[1] >= (stats[0] + 10)) {
-
-              message = `Unfortunately, you have lost. Try reducing the diffiulty`
-
-            } else {
-
-              message = `Unfortunately, you have lost`
-
-            }
-
-          }
-
-        } else {
-
-          message = `Congratulations, ${board.xname} have won, and ${board.name} has lost`
-
-        }
-
-        break;
-
-      case 'draw':
-
-        message = 'The match ends in a Tie!'
-
-        break;
-
-      default:
-
-        message = `Who won`
-
-        break;
-
-    }
-
-    UICtrl.sendSmallMessage(message, 2000)
-
-  }
-
-  const redoUndoStatus = function () {
-
-    const board = UserCtrl.getData('board')
-
-    const redoList = board.redoPoints
-
-    const undoList = board.playingPoints
-
-    if (redoList.length === 0) {
-
-      UICtrl.addClass(UICtrl.UIVars.boardRedo, 'hide')
-
-    } else {
-
-      if (board.numbPlay === 'one') {
-
-        if (redoList.length === 1) {
-
-          UICtrl.addClass(UICtrl.UIVars.boardRedo, 'hide')
-
-        } else {
-
-          UICtrl.removeClass(UICtrl.UIVars.boardRedo, 'hide')
-
-        }
-
-      } else {
-
-        UICtrl.removeClass(UICtrl.UIVars.boardRedo, 'hide')
-
-      }
-
-    }
-
-    if (undoList.length === 0) {
-
-      UICtrl.addClass(UICtrl.UIVars.boardUndo, 'hide')
-
-    } else {
-
-      if (board.numbPlay === 'one') {
-
-        if (undoList.length === 1) {
-
-          UICtrl.addClass(UICtrl.UIVars.boardUndo, 'hide')
-
-        } else {
-
-          UICtrl.removeClass(UICtrl.UIVars.boardUndo, 'hide')
-
-        }
-
-      } else {
-
-        UICtrl.removeClass(UICtrl.UIVars.boardUndo, 'hide')
-
-      }
-
-
-    }
-
-
-    ;[UICtrl.UIVars.boardUndo, UICtrl.UIVars.boardRedo].forEach((btn) => {
-      btn.setAttribute('aria-disabled', btn.classList.contains('hide'))
-    })
-
-  }
-
-  const checkForFullBoard = function () {
-
-    const board = UserCtrl.getData('board')
-
-    const theBoard = board.boardPoints
-
-    let draw = true
-
-    theBoard.forEach((item) => {
-
-      if (item === '') {
-
-        draw = false
-
-      }
-
-    })
-
-    if (draw) {
-
-      if (!board.won) {
-
-        endAction('draw')
-
-        endMessage('draw')
-
-        const xer = UserCtrl.getData('board')
-
-        xer.won = true
-
-        UserCtrl.setData('board', xer)
-
-      }
-
-    }
-
-  }
-
-  const storePattern = function (name, letter, index) {
-
-    const board = UserCtrl.getData('board')
-
-    const playingPoints = board.playingPoints
-
-    playingPoints.push([name, letter, index, playingPoints.length])
-
-    board.playingPoints = playingPoints
-
-    UserCtrl.setData('board', board)
-
-  }
-
-  const boardEventListeners = function () {
-
-    UICtrl.UIVars.boardReset.addEventListener('click', () => {
-
-      const board = verifyBoard(newBoard())
-
-      UserCtrl.setData('board', board)
-
-      fillBoard()
-
-      UICtrl.sendSmallMessage('Board has been reset!', 1000)
-
-      checkComputerTurn()
-
-    })
-
-    UICtrl.UIVars.boardUndo.addEventListener('click', () => {
-
-      redoUndoStatus()
-
-      const board = UserCtrl.getData('board')
-
-      if (board.numbPlay === 'one') {
-
-        if (UICtrl.UIVars.boardUndo.classList.contains('hide')) {
-
-          UICtrl.sendSmallMessage('Nothing to Undo!', 700)
-
-        } else {
-
-          const pointList = []
-
-          board.playingPoints.forEach((item) => {
-
-            pointList.push(item)
-
-          })
-
-          pointList.sort((a, b) => a[3] - b[3])
-
-          const pointItem = pointList[pointList.length - 1]
-
-          const pointItem2 = pointList[pointList.length - 2]
-
-          board.boardPoints[pointItem[2]] = ''
-
-          board.boardPoints[pointItem2[2]] = ''
-
-          board.playingPoints.pop()
-
-          board.playingPoints.pop()
-
-          board.redoPoints.push(pointItem)
-
-          board.redoPoints.push(pointItem2)
-
-          UserCtrl.setData('board', board)
-
-          fillBoard()
-
-        }
-
-      } else {
-
-        if (UICtrl.UIVars.boardUndo.classList.contains('hide')) {
-
-          UICtrl.sendSmallMessage('Nothing to Undo!', 700)
-
-        } else {
-
-          const pointList = []
-
-          board.playingPoints.forEach((item) => {
-
-            pointList.push(item)
-
-          })
-
-          pointList.sort((a, b) => a[3] - b[3])
-
-          const pointItem = pointList[pointList.length - 1]
-
-          board.boardPoints[pointItem[2]] = ''
-
-          board.playingPoints.pop()
-
-          board.redoPoints.push(pointItem)
-
-          board.turn = board.turn === board.name ? board.xname : board.name
-
-          UserCtrl.setData('board', board)
-
-          fillBoard()
-
-        }
-
-      }
-
-      checkComputerTurn()
-
-    })
-
-    UICtrl.UIVars.boardRedo.addEventListener('click', () => {
-
-      redoUndoStatus()
-
-      const board = UserCtrl.getData('board')
-
-      if (board.numbPlay === 'one') {
-
-        if (UICtrl.UIVars.boardRedo.classList.contains('hide')) {
-
-          UICtrl.sendSmallMessage('Nothing to Redo!', 700)
-
-        } else {
-
-          const pointList = []
-
-          board.redoPoints.forEach((item) => {
-
-            pointList.push(item)
-
-          })
-
-          pointList.sort((a, b) => b[3] - a[3])
-
-          const pointItem = pointList[pointList.length - 1]
-
-          const pointItem2 = pointList[pointList.length - 2]
-
-          board.boardPoints[pointItem[2]] = pointItem[1]
-
-          board.boardPoints[pointItem2[2]] = pointItem2[1]
-
-          board.redoPoints.pop()
-
-          board.redoPoints.pop()
-
-          board.playingPoints.push(pointItem)
-
-          board.playingPoints.push(pointItem2)
-
-          UserCtrl.setData('board', board)
-
-          fillBoard()
-
-        }
-
-      } else {
-
-        if (UICtrl.UIVars.boardRedo.classList.contains('hide')) {
-
-          UICtrl.sendSmallMessage('Nothing to Redo!', 700)
-
-        } else {
-
-          const pointList = []
-
-          board.redoPoints.forEach((item) => {
-
-            pointList.push(item)
-
-          })
-
-          pointList.sort((a, b) => b[3] - a[3])
-
-          const pointItem = pointList[pointList.length - 1]
-
-          board.boardPoints[pointItem[2]] = pointItem[1]
-
-          board.redoPoints.pop()
-
-          board.playingPoints.push(pointItem)
-
-          board.turn = board.turn === board.name ? board.xname : board.name
-
-          UserCtrl.setData('board', board)
-
-          fillBoard()
-
-        }
-
-      }
-
-      checkComputerTurn()
-
-    })
-
-    getUIBoard().forEach((item, index) => {
-
-      item.setAttribute('tabindex', '0')
-
-      item.setAttribute('role', 'button')
-
-      item.addEventListener('keydown', (e) => {
-
-        if (e.key === 'Enter' || e.key === ' ') {
-
-          e.preventDefault()
-
-          // Keyboard input must respect the same animation lock as the mouse
-          if (!UICtrl.UIVars.boardCover.classList.contains('cover')) { item.click() }
-
-        }
-
-      })
-
-      item.addEventListener('click', (e) => {
-
-        const board = UserCtrl.getData('board')
-
-        if (board.won) { return }
-
-        if (board.boardPoints[index] === '') {
-
-          if (board.numbPlay === 'one') {
-
-            if (board.turn === board.name) {
-
-              board.boardPoints[index] = board.playerLetter
-
-              board.redoPoints = []
-
-              board.turn = board.xname
-
-              UserCtrl.setData('board', board)
-
-              storePattern(board.name, board.playerLetter, index)
-
-              fillBoard()
-
-              redoUndoStatus()
-
-              checkForWin()
-
-              checkForFullBoard()
-
-              checkComputerTurn()
-
-            } else {
-
-              UICtrl.sendSmallMessage(`It is not your turn`, 700)
-
-            }
-
-          } else {
-
-            if (board.turn === board.name) {
-
-              board.boardPoints[index] = board.playerLetter
-
-              board.turn = board.xname
-
-              board.redoPoints = []
-
-              UserCtrl.setData('board', board)
-
-              storePattern(board.name, board.playerLetter, index)
-
-              fillBoard()
-
-              redoUndoStatus()
-
-              checkForWin()
-
-              checkForFullBoard()
-
-            } else {
-
-              board.boardPoints[index] = board.playerLetter === 'X' ? 'O' : 'X'
-
-              board.redoPoints = []
-
-              board.turn = board.name
-
-              UserCtrl.setData('board', board)
-
-              storePattern(board.xname, board.boardPoints[index], index)
-
-              fillBoard()
-
-              redoUndoStatus()
-
-              checkForWin()
-
-              checkForFullBoard()
-
-            }
-
-            UICtrl.sendSmallMessage(`${board.turn} turn`, 700)
-
-          }
-
-        } else {
-
-          UICtrl.sendSmallMessage('Position is taken!', 700)
-
-        }
-
-        checkComputerTurn()
-
-      })
-
-    })
-
-  }
-
-  const checkComputerTurn = function () {
-
-    const board = UserCtrl.getData('board')
-
-    if (board.numbPlay === 'one') {
-
-      if (board.turn === board.xname) {
-
-        if (!board.won) {
-
-          computerTurn()
-
-        }
-
-      }
-
-    }
-
-  }
-
-  const randomAmong = function (a, b) {
-
-    return (a + Math.floor(Math.random() * (b - a + 1)))
-
-  }
-
-  const chooseFrom = function (arr) {
-
-    return arr[randomAmong(0, arr.length - 1)]
+    }, 1500)
 
   }
 
   const computerTurn = function () {
 
-    // Init Begins
+    clearTimeout(thinking)
 
-    checkForFullBoard()
+    const asked = getBoard()
 
-    checkForWin()
+    const moves = asked.playingPoints.length
 
-    const board = UserCtrl.getData('board')
+    thinking = setTimeout(() => {
 
-    const letter = board.playerLetter === 'O' ? 'X' : 'O'
+      const board = getBoard()
 
-    let theNumber;
+      // The game moved on while it was thinking (undo, new game)
+      if (board.seed !== asked.seed || board.playingPoints.length !== moves ||
+        !isComputerTurn(board) || !board.boardPoints.includes('')) { return }
 
-    // Init Ends
+      const letter = board.turn
 
+      place(board, ComputerCtrl.choose(board.difficulty, board.boardPoints, letter), letter)
 
-    // Logic Begins
+      board.redoPoints = []
 
-    switch (board.difficulty) {
+      afterMove(board)
 
-      case 'easy':
+    }, 620 + Math.random() * 380)
 
-        theNumber = computerEasyMode()
+  }
 
-        break;
+  // ---- What the player can do
 
-      case 'medium':
+  const play = function (index) {
 
-        theNumber = computerMediumMode()
+    if (performance.now() < lockedUntil) { return }
 
-        break;
+    const board = getBoard()
 
-      case 'hard':
+    if (board.won) {
 
-        theNumber = computerHardMode()
+      newGame()
 
-        break;
-
-      default:
-
-        theNumber = computerEasyMode()
-
-        break;
+      return
 
     }
 
-    // Logic Ends
+    if (board.boardPoints[index] !== '' || isComputerTurn(board)) { return }
 
-
-    // End Works Begins
-
-    board.boardPoints[theNumber] = letter
+    place(board, index, board.turn)
 
     board.redoPoints = []
 
-    board.turn = board.name
+    if (Sound.isEnabled() && navigator.vibrate) { navigator.vibrate(8) }
 
-    UserCtrl.setData('board', board)
-
-    storePattern(board.xname, letter, theNumber)
-
-    // End Works Ends
-
-    setTimeout(() => {
-
-      fillBoard()
-
-      redoUndoStatus()
-
-      checkForWin()
-
-      checkForFullBoard()
-
-    }, 700)
+    afterMove(board)
 
   }
 
-  const computerEasyMode = function () {
+  const canUndo = function (board) {
 
-    const board = UserCtrl.getData('board')
+    if (board.won) { return false }
 
-    const allPos = board.boardPoints.map((item, index) => {
+    // Against the computer there must be a move of your own to take back
+    return board.numbPlay === 'two'
+      ? board.playingPoints.length > 0
+      : board.playingPoints.some(move => move[1] === board.playerLetter)
 
-      return [item, index]
+  }
+
+  const canRedo = (board) => !board.won && board.redoPoints.length > 0
+
+  const undo = function () {
+
+    const board = getBoard()
+
+    if (!canUndo(board)) { return }
+
+    clearTimeout(thinking)
+
+    const takeBack = () => {
+
+      const move = board.playingPoints.pop()
+
+      board.boardPoints[move[2]] = ''
+
+      board.redoPoints.push(move)
+
+      board.turn = move[1]
+
+    }
+
+    takeBack()
+
+    // Against the computer, go back to your own last move
+    if (board.numbPlay === 'one') {
+
+      while (board.turn !== board.playerLetter && board.playingPoints.length) { takeBack() }
+
+    }
+
+    saveBoard(board)
+
+    render(board)
+
+  }
+
+  const redo = function () {
+
+    const board = getBoard()
+
+    if (!canRedo(board)) { return }
+
+    clearTimeout(thinking)
+
+    const putBack = () => {
+
+      const move = board.redoPoints.pop()
+
+      board.boardPoints[move[2]] = move[1]
+
+      move[3] = board.playingPoints.length
+
+      board.playingPoints.push(move)
+
+      board.turn = other(move[1])
+
+    }
+
+    putBack()
+
+    // Against the computer, put its reply back as well
+    if (board.numbPlay === 'one') {
+
+      while (board.turn !== board.playerLetter && board.redoPoints.length) { putBack() }
+
+    }
+
+    afterMove(board)
+
+  }
+
+  const newGame = function (fresh) {
+
+    clearTimeout(thinking)
+
+    clearTimeout(endTimer)
+
+    clearTimeout(nudgeTimer)
+
+    const marked = getBoard().boardPoints.some(item => item !== '')
+
+    const board = newBoard(fresh === true)
+
+    saveBoard(board)
+
+    // No taps while the old game is being wiped off
+    lockedUntil = marked && !Sketch.still() ? performance.now() + DrawCtrl.WIPE_TIME : 0
+
+    render(board)
+
+    if (isComputerTurn(board)) { computerTurn() }
+
+  }
+
+  // ---- Showing the game
+
+  const statusParts = function (board) {
+
+    const result = board.result
+
+    const one = board.numbPlay === 'one'
+
+    if (result && result.winner === 'draw') { return { text: `It's a draw` } }
+
+    if (result) {
+
+      const name = nameOf(board, result.winner)
+
+      const mine = result.winner === board.playerLetter
+
+      if ((one && mine) || (!one && saysYou(name))) { return { text: 'You win!' } }
+
+      return { text: one ? `${name} wins` : `${name} wins!` }
+
+    }
+
+    if (isComputerTurn(board)) { return { text: `${nameOf(board, board.turn)} is thinking`, waiting: true } }
+
+    const name = nameOf(board, board.turn)
+
+    return { text: (one || saysYou(name)) ? 'Your move' : `${name}'s move` }
+
+  }
+
+  let lastStatus = ''
+
+  const updateStatus = function (board) {
+
+    const parts = statusParts(board)
+
+    const over = board.won
+
+    const key = `${parts.text}|${over}`
+
+    if (key !== lastStatus) {
+
+      lastStatus = key
+
+      UIVars.statusText.textContent = parts.text
+
+      if (parts.waiting) {
+
+        const dots = document.createElement('span')
+
+        dots.className = 'dots'
+
+        dots.setAttribute('aria-hidden', 'true')
+
+        dots.innerHTML = '<span>.</span><span>.</span><span>.</span>'
+
+        UIVars.statusText.appendChild(dots)
+
+      }
+
+      // The result lands with a little weight
+      UIVars.status.classList.remove('pop')
+
+      if (over) {
+
+        void UIVars.status.offsetWidth
+
+        UIVars.status.classList.add('pop')
+
+      }
+
+    }
+
+    // Lets the stylesheet colour the status line and the hover preview
+    UIVars.game.dataset.turn = over ? '' : board.turn
+
+    UIVars.game.dataset.result = over ? board.result.winner : ''
+
+    UIVars.game.toggleAttribute('data-waiting', Boolean(parts.waiting))
+
+    UIVars.game.classList.toggle('is-over', over)
+
+  }
+
+  const updateScoreboard = function (board, scored) {
+
+    const letters = [board.playerLetter, '', other(board.playerLetter)]
+
+    const score = visitScore(tableOf(board))
+
+    ;[0, 2].forEach((i) => {
+
+      const side = UIVars.sides[i]
+
+      const letter = letters[i]
+
+      side.querySelector('.letter').textContent = letter
+
+      side.querySelector('.who-name').textContent = nameOf(board, letter)
+
+      side.classList.toggle('is-x', letter === 'X')
+
+      side.classList.toggle('is-o', letter === 'O')
+
+      side.classList.toggle('is-turn', !board.won && board.turn === letter)
 
     })
 
-    const takenPos = allPos.filter(x => x[0] !== '')
-
-    const freePos = allPos.filter(x => x[0] === '')
-
-    const oppPos = takenPos.filter(x => x[0] == board.playerLetter)
-
-    const letter = board.playerLetter === 'O' ? 'X' : 'O'
-
-    const yourPos = takenPos.filter(x => x[0] == letter)
-
-    let theNumber = getEasyNum(oppPos, yourPos, freePos)
-
-    return theNumber
+    DrawCtrl.setScores([score[0], score[2], score[1]], letters, scored)
 
   }
 
-  const computerMediumMode = function () {
+  const updateCells = function (board) {
 
-    const board = UserCtrl.getData('board')
+    const winning = board.result ? board.result.lines.flat() : []
 
-    const allPos = board.boardPoints.map((item, index) => {
+    const waiting = isComputerTurn(board)
 
-      return [item, index]
+    UIVars.cells.forEach((cell, index) => {
+
+      const letter = board.boardPoints[index]
+
+      let state = letter === '' ? 'empty' : letter
+
+      if (winning.includes(index)) { state += ', winning square' }
+
+      if (board.won) { state += '. Press for a new game' }
+
+      cell.setAttribute('aria-label', `Row ${Math.floor(index / 3) + 1}, column ${(index % 3) + 1}: ${state}`)
+
+      // Once the game is over any square starts the next one
+      cell.setAttribute('aria-disabled', !board.won && (letter !== '' || waiting))
 
     })
 
-    const takenPos = allPos.filter(x => x[0] !== '')
+  }
 
-    const freePos = allPos.filter(x => x[0] === '')
+  const updateControls = function (board) {
 
-    const oppPos = takenPos.filter(x => x[0] == board.playerLetter)
+    UIVars.undo.setAttribute('aria-disabled', !canUndo(board))
 
-    const letter = board.playerLetter === 'O' ? 'X' : 'O'
+    UIVars.redo.setAttribute('aria-disabled', !canRedo(board))
 
-    const yourPos = takenPos.filter(x => x[0] == letter)
-
-    let theNumber = getMedNum(oppPos, yourPos, freePos)
-
-    return theNumber
+    UIVars.newGameLabel.textContent = board.won ? 'Play again' : 'New game'
 
   }
 
-  const computerHardMode = function () {
+  const render = function (board, opts) {
 
-    const board = UserCtrl.getData('board')
+    const options = opts || {}
 
-    const allPos = board.boardPoints.map((item, index) => {
+    DrawCtrl.sync(board, options.instant)
 
-      return [item, index]
+    updateStatus(board)
+
+    updateScoreboard(board, options.scored)
+
+    updateCells(board)
+
+    updateControls(board)
+
+    if (TEST_MODE) {
+
+      UICtrl.findElement('#board-place').textContent = JSON.stringify(board.playingPoints.map(item => item[2]))
+
+    }
+
+  }
+
+  // Draws the saved game again, for when names change
+  const refresh = function () {
+
+    render(getBoard(), { instant: true })
+
+  }
+
+  // ---- Listening
+
+  const boardEventListeners = function () {
+
+    UIVars.cells.forEach((cell, index) => {
+
+      cell.addEventListener('click', () => play(index))
 
     })
 
-    const takenPos = allPos.filter(x => x[0] !== '')
+    // Arrow keys walk around the board
+    UIVars.cellsHolder.addEventListener('keydown', (e) => {
 
-    const freePos = allPos.filter(x => x[0] === '')
+      const index = UIVars.cells.indexOf(document.activeElement)
 
-    const oppPos = takenPos.filter(x => x[0] == board.playerLetter)
+      if (index === -1) { return }
 
-    const letter = board.playerLetter === 'O' ? 'X' : 'O'
+      const row = Math.floor(index / 3)
 
-    const yourPos = takenPos.filter(x => x[0] == letter)
+      const col = index % 3
 
-    let theNumber = getHardNum(oppPos, yourPos, freePos)
+      let next = -1
 
-    return theNumber
+      if (e.key === 'ArrowLeft' && col > 0) { next = index - 1 }
+
+      if (e.key === 'ArrowRight' && col < 2) { next = index + 1 }
+
+      if (e.key === 'ArrowUp' && row > 0) { next = index - 3 }
+
+      if (e.key === 'ArrowDown' && row < 2) { next = index + 3 }
+
+      if (next !== -1) {
+
+        e.preventDefault()
+
+        UIVars.cells[next].focus()
+
+      }
+
+    })
+
+    UIVars.undo.addEventListener('click', undo)
+
+    UIVars.redo.addEventListener('click', redo)
+
+    UIVars.newGame.addEventListener('click', newGame)
+
+    document.addEventListener('keydown', (e) => {
+
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || UIVars.settings.open) { return }
+
+      if (e.target instanceof HTMLInputElement && e.target.type === 'text') { return }
+
+      const key = e.key.toLowerCase()
+
+      if (key === 'z' && !e.shiftKey) {
+
+        e.preventDefault()
+
+        undo()
+
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+
+        e.preventDefault()
+
+        redo()
+
+      }
+
+    })
 
   }
 
-  const getEasyNum = function (opTaken, myTaken, frePos) {
-
-    const op = opTaken.map(item => item[1])
-
-    const mp = myTaken.map(item => item[1])
-
-    const fp = frePos.map(item => item[1])
-
-    const almostConditions = [
-
-      // Horisontal Conditions
-      [0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 1, 0], [2, 0, 1],
-      [3, 4, 5], [3, 5, 4], [4, 3, 5], [4, 5, 3], [5, 4, 3], [5, 3, 4],
-      [6, 7, 8], [6, 8, 7], [7, 6, 8], [7, 8, 6], [8, 7, 6], [8, 6, 7],
-
-      // Vertical Conditions
-      [0, 3, 6], [0, 6, 3], [3, 0, 6], [3, 6, 0], [6, 3, 0], [6, 0, 3],
-      [1, 4, 7], [1, 7, 4], [4, 1, 7], [4, 7, 1], [7, 4, 1], [7, 1, 4],
-      [2, 5, 8], [2, 8, 5], [5, 2, 8], [5, 8, 2], [8, 5, 2], [8, 2, 5],
-
-      // Diagonal Conditions
-      [0, 4, 8], [0, 8, 4], [4, 0, 8], [4, 8, 0], [8, 4, 0], [8, 0, 4],
-      [2, 4, 6], [2, 6, 4], [4, 2, 6], [4, 6, 2], [6, 4, 2], [6, 2, 4]
-
-    ]
-
-    let returnNumb = undefined;
-
-    // Wins if free path is open
-    if (returnNumb === undefined) {
-
-      almostConditions.forEach(item => {
-
-        if (mp.indexOf(item[0]) !== -1 && mp.indexOf(item[1]) !== -1) {
-          // Check if computer has two almost taken
-
-          if (fp.indexOf(item[2]) !== -1) {
-            // Check if the position is free
-
-            returnNumb = item[2]
-
-          }
-
-        }
-
-      })
-
-    }
-
-    // Blocks opponent chance of winning
-    if (returnNumb === undefined) {
-
-      almostConditions.forEach(item => {
-
-        if (op.indexOf(item[0]) !== -1 && op.indexOf(item[1]) !== -1) {
-          // Check if human has two almost taken
-
-          if (fp.indexOf(item[2]) !== -1) {
-            // Check if the position is free
-
-            returnNumb = item[2]
-
-          }
-
-        }
-
-      })
-
-    }
-
-    // Work basic pattern to follow
-    if (returnNumb === undefined) {
-
-      // works to continue pattern to follow
-
-      let xcon = almostConditions.slice()
-
-      while (xcon.length > 1) {
-
-        let testList = chooseFrom(xcon);
-
-        let tester = mp.indexOf(testList[0]) !== -1 &&
-          fp.indexOf(testList[1]) !== -1 &&
-          fp.indexOf(testList[2]) !== -1
-
-        if (tester) {
-
-          returnNumb = chooseFrom([testList[1], testList[2]])
-
-          break
-
-        } else {
-
-          for (let i = 0; i < xcon.length; i++) {
-            const item = xcon[i].toString();
-
-            if (item == testList.toString()) { xcon.splice(i, 1) }
-          }
-
-        }
-
-      }
-
-    }
-
-    // Start basic pattern to follow
-    if (returnNumb === undefined) {
-
-      // works to start pattern to follow
-
-      let xcon = almostConditions.slice()
-
-      while (xcon.length > 1) {
-
-        let testList = chooseFrom(xcon);
-
-        let tester = fp.indexOf(testList[0]) !== -1 &&
-          fp.indexOf(testList[1]) !== -1 &&
-          fp.indexOf(testList[2]) !== -1
-
-        if (tester) {
-
-          returnNumb = chooseFrom(testList)
-
-          break
-
-        } else {
-
-
-          for (let i = 0; i < xcon.length; i++) {
-            const item = xcon[i].toString();
-
-            if (item == testList.toString()) { xcon.splice(i, 1) }
-          }
-
-        }
-
-      }
-
-    }
-
-    // Ultimate Fall back chooses at random
-    if (returnNumb === undefined) {
-
-      returnNumb = chooseFrom(fp)
-
-    }
-
-    return returnNumb
-
-  }
-
-  const getMedNum = function (opTaken, myTaken, frePos) {
-
-    const op = opTaken.map(item => item[1])
-
-    const mp = myTaken.map(item => item[1])
-
-    const fp = frePos.map(item => item[1])
-
-    const almostConditions = [
-
-      // Horisontal Conditions
-      [0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 1, 0], [2, 0, 1],
-      [3, 4, 5], [3, 5, 4], [4, 3, 5], [4, 5, 3], [5, 4, 3], [5, 3, 4],
-      [6, 7, 8], [6, 8, 7], [7, 6, 8], [7, 8, 6], [8, 7, 6], [8, 6, 7],
-
-      // Vertical Conditions
-      [0, 3, 6], [0, 6, 3], [3, 0, 6], [3, 6, 0], [6, 3, 0], [6, 0, 3],
-      [1, 4, 7], [1, 7, 4], [4, 1, 7], [4, 7, 1], [7, 4, 1], [7, 1, 4],
-      [2, 5, 8], [2, 8, 5], [5, 2, 8], [5, 8, 2], [8, 5, 2], [8, 2, 5],
-
-      // Diagonal Conditions
-      [0, 4, 8], [0, 8, 4], [4, 0, 8], [4, 8, 0], [8, 4, 0], [8, 0, 4],
-      [2, 4, 6], [2, 6, 4], [4, 2, 6], [4, 6, 2], [6, 4, 2], [6, 2, 4]
-
-    ]
-
-    const defs = {
-      center: [4],
-      edge: [1, 3, 5, 7],
-      corner: [0, 2, 6, 8],
-      all: [0, 1, 2, 3, 4, 5, 6, 7, 8],
-    }
-
-    // To get Two Ways
-    const twWork = [
-
-      [4, 1, 6], [4, 1, 8], [4, 5, 0], [4, 5, 6], [4, 7, 0], [4, 7, 2],
-      [4, 3, 8], [4, 3, 2],
-      // Center, Edge, Corner //
-
-      [4, 0, 8, 3, 6], [4, 0, 8, 1, 2], [4, 0, 8, 5, 6], [4, 0, 8, 7, 2],
-      // Center, Corner, Corner, Edge, Corner//
-
-      [0, 1, 6, 3, 8], [0, 1, 2, 3, 4], [0, 2, 6, 3, 8], [0, 2, 8, 4, 6],
-      [0, 5, 6, 3, 4], [0, 5, 2, 1, 6], [0, 5, 2, 1, 4], [0, 8, 6, 3, 2],
-      [0, 8, 2, 1, 6], [0, 7, 2, 1, 4], [0, 7, 6, 3, 2], [0, 7, 6, 3, 4],
-      [0, 6, 2, 1, 8], [0, 3, 6, 7, 4], [0, 3, 2, 1, 4], [0, 3, 6, 7, 4],
-      [0, 3, 6, 1, 4], [0, 3, 6, 5, 4], [0, 3, 2, 1, 8],
-      // Corner, Not Center //
-
-      [2, 0, 6, 4, 8], [2, 0, 8, 5, 6], [2, 1, 0, 5, 4], [2, 1, 0, 3, 4],
-      [2, 1, 0, 7, 4], [2, 1, 8, 5, 4], [2, 1, 8, 5, 6], [2, 5, 8, 1, 4],
-      [2, 5, 8, 7, 4], [2, 5, 8, 3, 4], [2, 5, 8, 1, 6], [2, 5, 8, 0, 6],
-      [2, 5, 8, 6, 0], [2, 5, 8, 7, 0], [2, 5, 8, 1, 6], [2, 5, 0, 1, 6],
-      [2, 5, 0, 1, 4], [2, 8, 0, 1, 6], [2, 8, 6, 4, 0], [2, 8, 0, 1, 6],
-      [2, 7, 8, 5, 4], [2, 7, 8, 5, 0], [2, 7, 0, 1, 4], [2, 6, 8, 5, 0],
-      [2, 6, 0, 1, 8], [2, 6, 0, 1, 8], [2, 3, 8, 5, 4], [2, 3, 0, 1, 8],
-      [2, 3, 0, 1, 8], [2, 0, 8, 5, 6], [2, 0, 6, 4, 8],
-      // Corner, Not Center //
-
-      [8, 0, 6, 7, 2], [8, 0, 2, 5, 6], [8, 1, 2, 5, 6], [8, 1, 6, 7, 4],
-      [8, 2, 6, 7, 0], [8, 5, 2, 1, 4], [8, 5, 2, 7, 4], [8, 5, 2, 3, 4],
-      [8, 5, 2, 7, 0], [8, 5, 2, 1, 6], [8, 5, 2, 6, 0], [8, 5, 2, 0, 6],
-      [8, 5, 6, 7, 0], [8, 7, 2, 5, 0], [8, 7, 6, 3, 4], [8, 7, 6, 0, 2],
-      [8, 7, 6, 1, 4], [8, 7, 6, 3, 2], [8, 7, 6, 3, 4], [8, 7, 6, 2, 0],
-      [8, 7, 6, 5, 4], [8, 7, 6, 5, 0], [8, 7, 2, 5, 4], [8, 7, 2, 5, 0],
-      [8, 6, 2, 5, 0], [8, 3, 6, 7, 4], [8, 3, 2, 5, 4], [8, 3, 6, 7, 2],
-      [8, 3, 6, 7, 4],
-      // Corner, Not Center //
-
-      [6, 0, 8, 7, 2], [6, 1, 8, 7, 4], [6, 1, 0, 3, 4], [6, 1, 0, 3, 8],
-      [6, 2, 0, 3, 8], [6, 2, 8, 7, 0], [6, 2, 0, 3, 8], [6, 5, 8, 7, 4],
-      [6, 5, 0, 3, 4], [6, 5, 8, 7, 0], [6, 8, 0, 3, 2], [6, 7, 8, 5, 4],
-      [6, 7, 8, 5, 0], [6, 7, 8, 2, 0], [6, 7, 8, 1, 4], [6, 7, 8, 0, 2],
-      [6, 7, 8, 3, 4], [6, 7, 8, 3, 2], [6, 7, 0, 3, 4], [6, 7, 0, 3, 2],
-      [6, 3, 0, 7, 4], [6, 3, 0, 7, 2], [6, 3, 0, 8, 2], [6, 3, 0, 5, 4],
-      [6, 3, 0, 2, 8], [6, 3, 0, 1, 4], [6, 3, 0, 1, 4], [6, 3, 0, 1, 8],
-      [6, 3, 8, 7, 4], [6, 3, 8, 7, 2], [6, 0, 2, 4, 8]
-      // Corner, Not Center //
-
-    ]
-
-    let returnNumb = undefined;
-
-    // Wins if free path is open
-    if (returnNumb === undefined) {
-
-      almostConditions.forEach(item => {
-
-        if (mp.indexOf(item[0]) !== -1 && mp.indexOf(item[1]) !== -1) {
-          // Check if computer has two almost taken
-
-          if (fp.indexOf(item[2]) !== -1) {
-            // Check if the position is free
-
-            returnNumb = item[2]
-
-          }
-
-        }
-
-      })
-
-    }
-
-    // Blocks opponent chance of winning
-    if (returnNumb === undefined) {
-
-      almostConditions.forEach(item => {
-
-        if (op.indexOf(item[0]) !== -1 && op.indexOf(item[1]) !== -1) {
-          // Check if human has two almost taken
-
-          if (fp.indexOf(item[2]) !== -1) {
-            // Check if the position is free
-
-            returnNumb = item[2]
-
-          }
-
-        }
-
-      })
-
-    }
-
-    // Work Two Ways
-    if (returnNumb === undefined) {
-
-      if (fp.length > 9) {
-
-        returnNumb = chooseFrom(defs.all.concat(defs.corner, defs.center, defs.corner, defs.center, defs.center, defs.center, defs.center))
-
-      } else if (fp.length <= 9) {
-
-        // Third play in two ways
-        if (returnNumb === undefined) {
-
-          // works to play third part in 2 way pattern 
-
-          let xcon = twWork.slice();
-
-          while (xcon.length > 1) {
-
-            let testList = chooseFrom(xcon);
-
-            if (testList.length >= 5) {
-
-              let tester = true
-
-              // Check for conditions to use two ways
-              testList.forEach((item, index) => {
-
-                let medium
-
-                // check if all items are free but item 0 and item 2 
-                // should be taken by the computer and 
-                // item 1 and item 3 should be taken by the opponent
-                if (index === 0 || index === 2) {
-
-                  medium = mp.includes(item)
-
-                } else if (index === 1 || index === 3) {
-
-                  medium = op.includes(item)
-
-                } else {
-
-                  medium = fp.includes(item)
-
-                }
-
-                tester = tester && medium
-
-              })
-
-              if (tester) {
-
-                returnNumb = testList[4]
-
-                break
-
-              } else {
-
-                for (let i = 0; i < xcon.length; i++) {
-                  const item = xcon[i].toString();
-
-                  if (item == testList.toString()) { xcon.splice(i, 1) }
-                }
-
-              }
-
-            } else {
-
-              for (let i = 0; i < xcon.length; i++) {
-                const item = xcon[i].toString();
-
-                if (item == testList.toString()) { xcon.splice(i, 1) }
-              }
-
-            }
-
-          }
-
-        }
-
-        // Second play in two ways
-        if (returnNumb === undefined) {
-
-          // works to play second part in 2 way pattern 
-
-          let xcon = twWork.slice()
-
-          while (xcon.length >= 1) {
-
-            let testList = chooseFrom(xcon);
-
-            if (testList.length >= 3) {
-
-              let tester = true
-
-              // Check for conditions to use two ways
-              testList.forEach((item, index) => {
-
-                let medium
-
-                // check if all items are free but item 0 should be taken
-                // by the computer and item 1 should be taken by the opponent
-                if (index === 0) {
-
-                  medium = mp.includes(item)
-
-                } else if (index === 1) {
-
-                  medium = op.includes(item)
-
-                } else {
-
-                  medium = fp.includes(item)
-
-                }
-
-                tester = tester && medium
-
-              })
-
-              if (tester) {
-
-                returnNumb = testList[2]
-
-                break
-
-              } else {
-
-                for (let i = 0; i < xcon.length; i++) {
-                  const item = xcon[i].toString();
-
-                  if (item == testList.toString()) { xcon.splice(i, 1) }
-                }
-
-              }
-
-            } else {
-
-              for (let i = 0; i < xcon.length; i++) {
-                const item = xcon[i].toString();
-
-                if (item == testList.toString()) { xcon.splice(i, 1) }
-              }
-
-            }
-
-          }
-
-        }
-
-        // Initialize Two ways
-        if (returnNumb === undefined) {
-
-          // works to start 2 way pattern to win
-
-          let xcon = twWork.slice();
-
-          while (xcon.length > 1) {
-
-            let testList = chooseFrom(xcon);
-
-            let tester = true
-
-            // Check for conditions to use two ways
-            testList.forEach(item => {
-
-              // chek if all items are free
-              let medium = fp.includes(item)
-
-              tester = tester && medium
-
-            })
-
-            if (tester) {
-
-              returnNumb = testList[0]
-
-              break
-
-            } else {
-
-              for (let i = 0; i < xcon.length; i++) {
-                const item = xcon[i].toString();
-
-                if (item == testList.toString()) { xcon.splice(i, 1) }
-              }
-
-            }
-
-          }
-
-        }
-
-      }
-
-    }
-
-    // Work basic pattern to follow
-    if (returnNumb === undefined) {
-
-      // works to continue pattern to follow
-
-      let xcon = almostConditions.slice()
-
-      while (xcon.length > 1) {
-
-        let testList = chooseFrom(xcon);
-
-        let tester = mp.indexOf(testList[0]) !== -1 &&
-          fp.indexOf(testList[1]) !== -1 &&
-          fp.indexOf(testList[2]) !== -1
-
-        if (tester) {
-
-          returnNumb = chooseFrom([testList[1], testList[2]])
-
-          break
-
-        } else {
-
-          for (let i = 0; i < xcon.length; i++) {
-            const item = xcon[i].toString();
-
-            if (item == testList.toString()) { xcon.splice(i, 1) }
-          }
-
-        }
-
-      }
-
-    }
-
-    // Start basic pattern to follow
-    if (returnNumb === undefined) {
-
-      // works to start pattern to follow
-
-      let xcon = almostConditions.slice()
-
-      while (xcon.length > 1) {
-
-        let testList = chooseFrom(xcon);
-
-        let tester = fp.indexOf(testList[0]) !== -1 &&
-          fp.indexOf(testList[1]) !== -1 &&
-          fp.indexOf(testList[2]) !== -1
-
-        if (tester) {
-
-          returnNumb = chooseFrom(testList)
-
-          break
-
-        } else {
-
-
-          for (let i = 0; i < xcon.length; i++) {
-            const item = xcon[i].toString();
-
-            if (item == testList.toString()) { xcon.splice(i, 1) }
-          }
-
-        }
-
-      }
-
-    }
-
-    // Ultimate Fall back chooses at random
-    if (returnNumb === undefined) {
-
-      returnNumb = chooseFrom(fp)
-
-    }
-
-    return returnNumb
-
-  }
-
-  const getHardNum = function (opTaken, myTaken, frePos) {
-
-    const op = opTaken.map(item => item[1])
-
-    const mp = myTaken.map(item => item[1])
-
-    const fp = frePos.map(item => item[1])
-
-    const almostConditions = [
-
-      // Horisontal Conditions
-      [0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 1, 0], [2, 0, 1],
-      [3, 4, 5], [3, 5, 4], [4, 3, 5], [4, 5, 3], [5, 4, 3], [5, 3, 4],
-      [6, 7, 8], [6, 8, 7], [7, 6, 8], [7, 8, 6], [8, 7, 6], [8, 6, 7],
-
-      // Vertical Conditions
-      [0, 3, 6], [0, 6, 3], [3, 0, 6], [3, 6, 0], [6, 3, 0], [6, 0, 3],
-      [1, 4, 7], [1, 7, 4], [4, 1, 7], [4, 7, 1], [7, 4, 1], [7, 1, 4],
-      [2, 5, 8], [2, 8, 5], [5, 2, 8], [5, 8, 2], [8, 5, 2], [8, 2, 5],
-
-      // Diagonal Conditions
-      [0, 4, 8], [0, 8, 4], [4, 0, 8], [4, 8, 0], [8, 4, 0], [8, 0, 4],
-      [2, 4, 6], [2, 6, 4], [4, 2, 6], [4, 6, 2], [6, 4, 2], [6, 2, 4]
-
-    ]
-
-    const defs = {
-      center: [4],
-      edge: [1, 3, 5, 7],
-      corner: [0, 2, 6, 8],
-      all: [0, 1, 2, 3, 4, 5, 6, 7, 8],
-    }
-
-    // To get Two Ways
-    const twWork = [
-
-      [4, 1, 6], [4, 1, 8], [4, 5, 0], [4, 5, 6], [4, 7, 0], [4, 7, 2],
-      [4, 3, 8], [4, 3, 2],
-      // Center, Edge, Corner //
-
-      [4, 0, 8, 3, 6], [4, 0, 8, 1, 2], [4, 0, 8, 5, 6], [4, 0, 8, 7, 2],
-      // Center, Corner, Corner, Edge, Corner//
-
-      [0, 1, 6, 3, 8], [0, 1, 2, 3, 4], [0, 2, 6, 3, 8], [0, 2, 8, 4, 6],
-      [0, 5, 6, 3, 4], [0, 5, 2, 1, 6], [0, 5, 2, 1, 4], [0, 8, 6, 3, 2],
-      [0, 8, 2, 1, 6], [0, 7, 2, 1, 4], [0, 7, 6, 3, 2], [0, 7, 6, 3, 4],
-      [0, 6, 2, 1, 8], [0, 3, 6, 7, 4], [0, 3, 2, 1, 4], [0, 3, 6, 7, 4],
-      [0, 3, 6, 1, 4], [0, 3, 6, 5, 4], [0, 3, 2, 1, 8],
-      // Corner, Not Center //
-
-      [2, 0, 6, 4, 8], [2, 0, 8, 5, 6], [2, 1, 0, 5, 4], [2, 1, 0, 3, 4],
-      [2, 1, 0, 7, 4], [2, 1, 8, 5, 4], [2, 1, 8, 5, 6], [2, 5, 8, 1, 4],
-      [2, 5, 8, 7, 4], [2, 5, 8, 3, 4], [2, 5, 8, 1, 6], [2, 5, 8, 0, 6],
-      [2, 5, 8, 6, 0], [2, 5, 8, 7, 0], [2, 5, 8, 1, 6], [2, 5, 0, 1, 6],
-      [2, 5, 0, 1, 4], [2, 8, 0, 1, 6], [2, 8, 6, 4, 0], [2, 8, 0, 1, 6],
-      [2, 7, 8, 5, 4], [2, 7, 8, 5, 0], [2, 7, 0, 1, 4], [2, 6, 8, 5, 0],
-      [2, 6, 0, 1, 8], [2, 6, 0, 1, 8], [2, 3, 8, 5, 4], [2, 3, 0, 1, 8],
-      [2, 3, 0, 1, 8], [2, 0, 8, 5, 6], [2, 0, 6, 4, 8],
-      // Corner, Not Center //
-
-      [8, 0, 6, 7, 2], [8, 0, 2, 5, 6], [8, 1, 2, 5, 6], [8, 1, 6, 7, 4],
-      [8, 2, 6, 7, 0], [8, 5, 2, 1, 4], [8, 5, 2, 7, 4], [8, 5, 2, 3, 4],
-      [8, 5, 2, 7, 0], [8, 5, 2, 1, 6], [8, 5, 2, 6, 0], [8, 5, 2, 0, 6],
-      [8, 5, 6, 7, 0], [8, 7, 2, 5, 0], [8, 7, 6, 3, 4], [8, 7, 6, 0, 2],
-      [8, 7, 6, 1, 4], [8, 7, 6, 3, 2], [8, 7, 6, 3, 4], [8, 7, 6, 2, 0],
-      [8, 7, 6, 5, 4], [8, 7, 6, 5, 0], [8, 7, 2, 5, 4], [8, 7, 2, 5, 0],
-      [8, 6, 2, 5, 0], [8, 3, 6, 7, 4], [8, 3, 2, 5, 4], [8, 3, 6, 7, 2],
-      [8, 3, 6, 7, 4],
-      // Corner, Not Center //
-
-      [6, 0, 8, 7, 2], [6, 1, 8, 7, 4], [6, 1, 0, 3, 4], [6, 1, 0, 3, 8],
-      [6, 2, 0, 3, 8], [6, 2, 8, 7, 0], [6, 2, 0, 3, 8], [6, 5, 8, 7, 4],
-      [6, 5, 0, 3, 4], [6, 5, 8, 7, 0], [6, 8, 0, 3, 2], [6, 7, 8, 5, 4],
-      [6, 7, 8, 5, 0], [6, 7, 8, 2, 0], [6, 7, 8, 1, 4], [6, 7, 8, 0, 2],
-      [6, 7, 8, 3, 4], [6, 7, 8, 3, 2], [6, 7, 0, 3, 4], [6, 7, 0, 3, 2],
-      [6, 3, 0, 7, 4], [6, 3, 0, 7, 2], [6, 3, 0, 8, 2], [6, 3, 0, 5, 4],
-      [6, 3, 0, 2, 8], [6, 3, 0, 1, 4], [6, 3, 0, 1, 4], [6, 3, 0, 1, 8],
-      [6, 3, 8, 7, 4], [6, 3, 8, 7, 2], [6, 0, 2, 4, 8]
-      // Corner, Not Center //
-
-    ]
-
-    // To stop Two Ways
-    const twStop = [
-
-      [4, 0, 8, 6], [4, 0, 8, 2], [4, 2, 6, 0], [4, 2, 6, 8], [4, 8, 0, 6],
-      [4, 8, 0, 2], [4, 6, 2, 8], [4, 6, 2, 0], [4, 6, 2, 8], [0, 4, 6, 8],
-
-      [0, 4, 8, 7], [0, 4, 8, 3], [0, 4, 8, 1], [0, 4, 8, 5], [2, 4, 6, 1],
-      [2, 4, 6, 5], [2, 4, 6, 7], [2, 4, 6, 3], [8, 4, 0, 1], [8, 4, 0, 5],
-      [8, 4, 0, 7], [8, 4, 0, 3], [6, 4, 2, 1], [6, 4, 2, 7], [6, 4, 2, 5],
-      [6, 4, 2, 3]
-
-    ]
-
-    let returnNumb = undefined;
-
-    // Wins if free path is open
-    if (returnNumb === undefined) {
-
-      almostConditions.forEach(item => {
-
-        if (mp.indexOf(item[0]) !== -1 && mp.indexOf(item[1]) !== -1) {
-          // Check if computer has two almost taken
-
-          if (fp.indexOf(item[2]) !== -1) {
-            // Check if the position is free
-
-            returnNumb = item[2]
-
-          }
-
-        }
-
-      })
-
-    }
-
-    // Blocks opponent chance of winning
-    if (returnNumb === undefined) {
-
-      almostConditions.forEach(item => {
-
-        if (op.indexOf(item[0]) !== -1 && op.indexOf(item[1]) !== -1) {
-          // Check if human has two almost taken
-
-          if (fp.indexOf(item[2]) !== -1) {
-            // Check if the position is free
-
-            returnNumb = item[2]
-
-          }
-
-        }
-
-      })
-
-    }
-
-    // Block Two Ways
-    if (returnNumb === undefined) {
-
-      if (fp.length <= 9) {
-
-        // Third play in block
-        if (returnNumb === undefined) {
-
-          // works to play third part to block 
-
-          let xcon = twStop.slice();
-
-          while (xcon.length > 1) {
-
-            let testList = chooseFrom(xcon);
-
-            if (testList.length >= 6) {
-
-              let tester = true
-
-              // Check if blocking is necessary
-              testList.forEach((item, index) => {
-
-                let medium
-
-                // check if all items are free but item 0, item 2 and item 4
-                // should be taken by the opponent and item 1 and item 3 
-                // should be taken by the computer
-                if (index === 0 || index === 2 || index === 4) {
-
-                  medium = op.includes(item)
-
-                } else if (index === 1 || index === 3) {
-
-                  medium = mp.includes(item)
-
-                } else {
-
-                  medium = fp.includes(item)
-
-                }
-
-                tester = tester && medium
-
-              })
-
-              if (tester) {
-
-                returnNumb = testList[5]
-
-                break
-
-              } else {
-
-                for (let i = 0; i < xcon.length; i++) {
-                  const item = xcon[i].toString();
-
-                  if (item == testList.toString()) { xcon.splice(i, 1) }
-                }
-
-              }
-
-            } else {
-
-              for (let i = 0; i < xcon.length; i++) {
-                const item = xcon[i].toString();
-
-                if (item == testList.toString()) { xcon.splice(i, 1) }
-              }
-
-            }
-
-          }
-
-        }
-
-        // Second play in block
-        if (returnNumb === undefined) {
-
-          // works to play second part to block 
-
-          let xcon = twStop.slice(); let a = 0
-
-          while (xcon.length >= 1) {
-
-            let testList = chooseFrom(xcon); a++
-
-            if (testList.length >= 4) {
-
-              let tester = true
-
-
-              // Check if blocking is necessary
-              testList.forEach((item, index) => {
-
-                let medium
-
-                // check if all items are free but item 0 and item 2 should 
-                // be taken by the opponent and item 1 should be taken by
-                // the computer
-                if (index === 0 && index === 2) {
-
-                  medium = op.includes(item)
-
-                } else if (index === 1) {
-
-                  medium = mp.includes(item)
-
-                } else {
-
-                  medium = fp.includes(item)
-
-                }
-
-                tester = tester && medium
-
-              })
-
-              if (tester) {
-
-                returnNumb = testList[3]
-
-                break
-
-              } else {
-
-                for (let i = 0; i < xcon.length; i++) {
-                  const item = xcon[i].toString();
-
-                  if (item == testList.toString()) { xcon.splice(i, 1) }
-                }
-
-              }
-
-            } else {
-
-              for (let i = 0; i < xcon.length; i++) {
-                const item = xcon[i].toString();
-
-                if (item == testList.toString()) { xcon.splice(i, 1) }
-              }
-
-            }
-
-          }
-
-        }
-
-        // Initialize block
-        if (returnNumb === undefined) {
-
-          // works to block
-
-          let xcon = twStop.slice();
-
-          while (xcon.length > 1) {
-
-            let testList = chooseFrom(xcon);
-
-            let tester = true
-
-            // Check if blocking is neccessary
-            testList.forEach((item, index) => {
-
-              // check if all items are free but item 0 should be taken
-              // by the opponent
-              if (index === 0) {
-
-                medium = op.includes(item)
-
-              } else {
-
-                medium = fp.includes(item)
-
-              }
-
-              tester = tester && medium
-
-            })
-
-            if (tester) {
-
-              returnNumb = testList[1]
-
-              break
-
-            } else {
-
-              for (let i = 0; i < xcon.length; i++) {
-                const item = xcon[i].toString();
-
-                if (item == testList.toString()) { xcon.splice(i, 1) }
-              }
-
-            }
-
-          }
-
-        }
-
-      }
-
-    }
-
-    // Work Two Ways
-    if (returnNumb === undefined) {
-
-      if (fp.length <= 9) {
-
-        // Third play in two ways
-        if (returnNumb === undefined) {
-
-          // works to play third part in 2 way pattern 
-
-          let xcon = twWork.slice();
-
-          while (xcon.length > 1) {
-
-            let testList = chooseFrom(xcon);
-
-            if (testList.length >= 5) {
-
-              let tester = true
-
-              // Check for conditions to use two ways
-              testList.forEach((item, index) => {
-
-                let medium
-
-                // check if all items are free but item 0 and item 2 
-                // should be taken by the computer and 
-                // item 1 and item 3 should be taken by the opponent
-                if (index === 0 || index === 2) {
-
-                  medium = mp.includes(item)
-
-                } else if (index === 1 || index === 3) {
-
-                  medium = op.includes(item)
-
-                } else {
-
-                  medium = fp.includes(item)
-
-                }
-
-                tester = tester && medium
-
-              })
-
-              if (tester) {
-
-                returnNumb = testList[4]
-
-                break
-
-              } else {
-
-                for (let i = 0; i < xcon.length; i++) {
-                  const item = xcon[i].toString();
-
-                  if (item == testList.toString()) { xcon.splice(i, 1) }
-                }
-
-              }
-
-            } else {
-
-              for (let i = 0; i < xcon.length; i++) {
-                const item = xcon[i].toString();
-
-                if (item == testList.toString()) { xcon.splice(i, 1) }
-              }
-
-            }
-
-          }
-
-        }
-
-        // Second play in two ways
-        if (returnNumb === undefined) {
-
-          // works to play second part in 2 way pattern 
-
-          let xcon = twWork.slice()
-
-          while (xcon.length >= 1) {
-
-            let testList = chooseFrom(xcon);
-
-            if (testList.length >= 3) {
-
-              let tester = true
-
-              // Check for conditions to use two ways
-              testList.forEach((item, index) => {
-
-                let medium
-
-                // check if all items are free but item 0 should be taken
-                // by the computer and item 1 should be taken by the opponent
-                if (index === 0) {
-
-                  medium = mp.includes(item)
-
-                } else if (index === 1) {
-
-                  medium = op.includes(item)
-
-                } else {
-
-                  medium = fp.includes(item)
-
-                }
-
-                tester = tester && medium
-
-              })
-
-              if (tester) {
-
-                returnNumb = testList[2]
-
-                break
-
-              } else {
-
-                for (let i = 0; i < xcon.length; i++) {
-                  const item = xcon[i].toString();
-
-                  if (item == testList.toString()) { xcon.splice(i, 1) }
-                }
-
-              }
-
-            } else {
-
-              for (let i = 0; i < xcon.length; i++) {
-                const item = xcon[i].toString();
-
-                if (item == testList.toString()) { xcon.splice(i, 1) }
-              }
-
-            }
-
-          }
-
-        }
-
-        // Initialize Two ways
-        if (returnNumb === undefined) {
-
-          // works to start 2 way pattern to win
-
-          let xcon = twWork.slice();
-
-          while (xcon.length > 1) {
-
-            let testList = chooseFrom(xcon);
-
-            let tester = true
-
-            // Check for conditions to use two ways
-            testList.forEach(item => {
-
-              // chek if all items are free
-              let medium = fp.includes(item)
-
-              tester = tester && medium
-
-            })
-
-            if (tester) {
-
-              returnNumb = testList[0]
-
-              break
-
-            } else {
-
-              for (let i = 0; i < xcon.length; i++) {
-                const item = xcon[i].toString();
-
-                if (item == testList.toString()) { xcon.splice(i, 1) }
-              }
-
-            }
-
-          }
-
-        }
-
-      }
-
-    }
-
-    // Work basic pattern to follow
-    if (returnNumb === undefined) {
-
-      // works to continue pattern to follow
-
-      let xcon = almostConditions.slice()
-
-      while (xcon.length > 1) {
-
-        let testList = chooseFrom(xcon);
-
-        let tester = mp.indexOf(testList[0]) !== -1 &&
-          fp.indexOf(testList[1]) !== -1 &&
-          fp.indexOf(testList[2]) !== -1
-
-        if (tester) {
-
-          returnNumb = chooseFrom([testList[1], testList[2]])
-
-          break
-
-        } else {
-
-          for (let i = 0; i < xcon.length; i++) {
-            const item = xcon[i].toString();
-
-            if (item == testList.toString()) { xcon.splice(i, 1) }
-          }
-
-        }
-
-      }
-
-    }
-
-    // Start basic pattern to follow
-    if (returnNumb === undefined) {
-
-      // works to start pattern to follow
-
-      let xcon = almostConditions.slice()
-
-      while (xcon.length > 1) {
-
-        let testList = chooseFrom(xcon);
-
-        let tester = fp.indexOf(testList[0]) !== -1 &&
-          fp.indexOf(testList[1]) !== -1 &&
-          fp.indexOf(testList[2]) !== -1
-
-        if (tester) {
-
-          returnNumb = chooseFrom(testList)
-
-          break
-
-        } else {
-
-
-          for (let i = 0; i < xcon.length; i++) {
-            const item = xcon[i].toString();
-
-            if (item == testList.toString()) { xcon.splice(i, 1) }
-          }
-
-        }
-
-      }
-
-    }
-
-    // Ultimate Fall back chooses at random
-    if (returnNumb === undefined) {
-
-      returnNumb = chooseFrom(fp)
-
-    }
-
-    return returnNumb
-
-  }
-
-  // Send out Function
   const startBoard = function () {
 
-    let board = UserCtrl.getData('board')
+    const board = verifyBoard(getBoard())
 
-    board = verifyBoard(board)
+    saveBoard(board)
 
-    // A finished game is normally replaced 2s after it ends. If the page was
-    // reloaded inside that window the timer was lost, so start the next game
-    // now, the same way. Its result is already counted in the stats.
-    if (isGameOver(board)) { board = verifyBoard(newBoard()) }
+    if (TEST_MODE) {
 
-    UserCtrl.setData('board', board)
+      const place = document.createElement('div')
 
-    fillBoard()
+      place.className = 'board-place'
+
+      place.id = 'board-place'
+
+      UIVars.controls.insertAdjacentElement('afterend', place)
+
+    }
+
+    // A game that was already on the board is simply there, not redrawn
+    render(board, { instant: true })
 
     boardEventListeners()
 
-    checkForWin()
-
-    checkForFullBoard()
-
-    checkComputerTurn()
+    if (isComputerTurn(board)) { computerTurn() }
 
   }
 
-  const boardVars = {
+  // True when the saved game has no marks yet, so the grid can draw itself in
+  const startsEmpty = function () {
 
-    emptySocket: `<svg viewBox="0 0 100 100" aria-hidden="true"></svg>`,
+    const board = verifyBoard(getBoard())
 
-    xSocket: `<svg viewBox="0 0 100 100" aria-hidden="true">
-      <path class="stroke" pathLength="1" d="M25 24 L76 77" />
-      <path class="stroke stroke-2" pathLength="1" d="M76 23 L24 76" />
-    </svg>`,
-
-    oSocket: `<svg viewBox="0 0 100 100" aria-hidden="true">
-      <path class="stroke" pathLength="1" d="M50 19 A31 31 0 1 1 49.99 19" />
-    </svg>`,
+    return board.boardPoints.every(item => item === '')
 
   }
 
@@ -3076,7 +1841,11 @@ const BoardCtrl = (function () {
 
     startBoard: () => startBoard(),
 
-    fillBoard: () => fillBoard()
+    startsEmpty: () => startsEmpty(),
+
+    newGame: (fresh) => newGame(fresh),
+
+    refresh: () => refresh(),
 
   };
 })();
@@ -3086,185 +1855,136 @@ const BoardCtrl = (function () {
 const App = (function (UICtrl, BoardCtrl,
   StorageCtrl, UserCtrl) {
 
-  const loadEventListeners = function () {
+  const UIVars = UICtrl.UIVars
 
-    UICtrl.UIVars.navOpener.addEventListener('click', openSettings)
+  const useIcon = (button, id) => button.querySelector('use').setAttribute('href', `#${id}`)
 
-    UICtrl.UIVars.navCloser.addEventListener('click', closeSettings)
+  // ---- Opponent
 
-    UICtrl.UIVars.navBlur.addEventListener('click', (e) => {
+  // value: 'easy', 'medium', 'hard' or 'friend'
+  const chooseOpponent = function (value) {
 
-      if (e.target.classList.contains('site-settings-holder')) {
+    const xname = UserCtrl.getData('xname')
 
-        closeSettings()
+    if (value === 'friend') {
 
-      }
+      UserCtrl.setData('numb players', 'two')
 
-    })
+      // Only rename an opponent the player has not named themselves
+      if (xname === 'Computer') { UserCtrl.setData('xname', 'Friend') }
 
-    document.addEventListener('keydown', (e) => {
+    } else {
 
-      if (e.key === 'Escape' && settingsOpen()) {
+      UserCtrl.setData('numb players', 'one')
 
-        closeSettings()
+      UserCtrl.setData('difficulty', value)
 
-      }
+      if (xname === 'Friend') { UserCtrl.setData('xname', 'Computer') }
 
-      // Keep Tab inside the settings drawer while it is open
-      if (e.key === 'Tab' && settingsOpen()) {
+    }
 
-        const focusable = Array.from(UICtrl.UIVars.navBlur.querySelectorAll('button, input'))
+    fillAllSettings()
 
-        const first = focusable[0]
+    BoardCtrl.newGame(true)
 
-        const last = focusable[focusable.length - 1]
+  }
 
-        if (!UICtrl.UIVars.navBlur.contains(document.activeElement)) {
+  // ---- Sound and theme
 
-          e.preventDefault()
+  const showSound = function () {
 
-          first.focus()
+    const on = UserCtrl.getData('sound') !== false
 
-        } else if (e.shiftKey && document.activeElement === first) {
+    Sound.setEnabled(on)
 
-          e.preventDefault()
+    useIcon(UIVars.soundToggle, on ? 'i-sound' : 'i-muted')
 
-          last.focus()
+    UIVars.soundToggle.setAttribute('aria-pressed', on)
 
-        } else if (!e.shiftKey && document.activeElement === last) {
+    UIVars.soundToggle.title = on ? 'Sound is on' : 'Sound is off'
 
-          e.preventDefault()
+  }
 
-          first.focus()
+  const showTheme = function () {
 
-        }
+    const paper = UIVars.html.dataset.theme === 'paper'
 
-      }
+    // The button shows where it takes you
+    useIcon(UIVars.themeToggle, paper ? 'i-board' : 'i-paper')
 
-    })
+    const label = paper ? 'Switch to chalkboard' : 'Switch to paper'
 
-    UICtrl.UIVars.msgBlur.addEventListener('click', () => {
+    UIVars.themeToggle.setAttribute('aria-label', label)
 
-      // UICtrl.removeMessage()
+    UIVars.themeToggle.title = label
 
-    })
+  }
 
-    UICtrl.UIVars.smallMsgX.addEventListener('click', () => {
+  // ---- Settings
 
-      UICtrl.removeSmallMessage()
+  const fillAllSettings = function () {
 
-    })
+    UIVars.settName.value = UserCtrl.getData('name')
 
-    UICtrl.UIVars.settSave.addEventListener('click', () => {
+    UIVars.settXname.value = UserCtrl.getData('xname')
 
-      const name = UICtrl.UIVars.settName.value
+    UICtrl.setChoice(UIVars.settLetter, UserCtrl.getData('letter') === 'O' ? 'O' : 'X')
 
-      const xname = UICtrl.UIVars.settXname.value
+    const first = UserCtrl.getData('first move')
 
-      let playerLetter = Array.from(UICtrl.UIVars.settLetter.children)
+    UICtrl.setChoice(UIVars.settFirst, (first === 'X' || first === 'O') ? first : 'XO')
 
-      let gameDiff = Array.from(UICtrl.UIVars.settDifficulty.children)
+    UICtrl.setChoice(UIVars.opponent,
+      UserCtrl.getData('numb players') === 'two' ? 'friend' : (UserCtrl.getData('difficulty') || 'easy'))
 
-      let playersNumber = Array.from(UICtrl.UIVars.settNumbOPlay.children)
+  }
 
-      let firstMove = Array.from(UICtrl.UIVars.settFirstMove.children)
+  const STAT_ROWS = ['stat easy', 'stat medium', 'stat hard', 'stat friend', 'stat total']
 
+  const fillAllStats = function () {
 
-      playerLetter = playerLetter.map(item => item.lastElementChild)
+    Array.from(UIVars.statsTable.children).forEach((row, index) => {
 
-      gameDiff = gameDiff.map(item => item.lastElementChild)
+      const stats = UserCtrl.getData(STAT_ROWS[index])
 
-      playersNumber = playersNumber.map(item => item.lastElementChild)
+      Array.from(row.querySelectorAll('td')).forEach((cell, column) => {
 
-      firstMove = firstMove.map(item => item.lastElementChild)
+        cell.textContent = stats[column]
 
-      if (name.trim() === '' || xname.trim() === '') {
+      })
 
-        UICtrl.sendSmallMessage(`Name fields can't be empty`, 2000)
-
-      } else if (name.trim().toLowerCase() === xname.trim().toLowerCase()) {
-
-        UICtrl.sendSmallMessage(`Player and opponent names must be different`, 2500)
-
-      } else {
-
-        UserCtrl.setData('name', name.trim())
-
-        UserCtrl.setData('xname', xname.trim())
-
-        playerLetter.forEach(item => {
-
-          if (item.checked === true) {
-
-            UserCtrl.setData('letter', item.id.split('-')[1])
-
-          }
-
-        })
-
-        gameDiff.forEach(item => {
-
-          if (item.checked === true) {
-
-            UserCtrl.setData('difficulty', item.id.split('-')[1])
-
-          }
-
-        })
-
-        playersNumber.forEach(item => {
-
-          if (item.checked === true) {
-
-            UserCtrl.setData('numb players', item.id.split('-')[1])
-
-          }
-
-        })
-
-        firstMove.forEach(item => {
-
-          if (item.checked === true) {
-
-            UserCtrl.setData('first move', item.id.split('-')[1])
-
-          }
-
-        })
-
-
-        UICtrl.sendSmallMessage(`Settings are saved but won't take effect until next match`, 2000)
-
-        fillAllSettings()
-      }
-
-    })
-
-    UICtrl.UIVars.statsReset.addEventListener('click', () => {
-
-      UserCtrl.setData('stat easy', [0, 0, 0])
-
-      UserCtrl.setData('stat medium', [0, 0, 0])
-
-      UserCtrl.setData('stat hard', [0, 0, 0])
-
-      UserCtrl.setData('stat friend', [0, 0, 0])
-
-      fillAllStats()
-
-      BoardCtrl.fillBoard()
-
-      UICtrl.sendSmallMessage('Statistics have been reset', 1500)
     })
 
   }
 
-  const SETTINGS_ANIMATION = 250
+  // Circles around the chosen option in every list, sized to each label
+  const fitRings = function () {
 
-  const settingsOpen = function () {
+    UICtrl.findElements('.choice label').forEach((label, index) => {
 
-    return UICtrl.UIVars.nav.classList.contains('show-sett') &&
-      !UICtrl.UIVars.nav.classList.contains('hide-sett')
+      let ring = label.querySelector('.ring')
+
+      if (!ring) {
+
+        label.insertAdjacentHTML('beforeend',
+          '<svg class="ring" aria-hidden="true" focusable="false"><path pathLength="1" /></svg>')
+
+        ring = label.querySelector('.ring')
+
+      }
+
+      const w = label.offsetWidth
+
+      const h = label.offsetHeight
+
+      // Labels inside the closed settings drawer have no size yet
+      if (!w || !h) { return }
+
+      ring.setAttribute('viewBox', `0 0 ${w} ${h}`)
+
+      ring.firstElementChild.setAttribute('d', Sketch.loopPath(40 + index, w, h))
+
+    })
 
   }
 
@@ -3274,293 +1994,209 @@ const App = (function (UICtrl, BoardCtrl,
 
     fillAllStats()
 
-    UICtrl.addClass(UICtrl.UIVars.nav, 'show-sett')
+    UIVars.settings.classList.remove('closing')
 
-    UICtrl.UIVars.navOpener.setAttribute('aria-expanded', 'true')
+    UIVars.settings.showModal()
 
-    UICtrl.UIVars.navCloser.focus()
+    fitRings()
 
   }
 
   const closeSettings = function () {
 
-    if (!settingsOpen()) { return }
+    if (!UIVars.settings.open || UIVars.settings.classList.contains('closing')) { return }
 
-    UICtrl.addClass(UICtrl.UIVars.nav, 'hide-sett')
-
-    UICtrl.UIVars.navOpener.setAttribute('aria-expanded', 'false')
+    UIVars.settings.classList.add('closing')
 
     setTimeout(() => {
 
-      UICtrl.removeClass(UICtrl.UIVars.nav, 'hide-sett')
+      UIVars.settings.classList.remove('closing')
 
-      UICtrl.removeClass(UICtrl.UIVars.nav, 'show-sett')
+      // A note showing inside the drawer stays on the page
+      if (UIVars.toast.parentElement === UIVars.settings) { document.body.appendChild(UIVars.toast) }
 
-      UICtrl.UIVars.navOpener.focus()
+      UIVars.settings.close()
 
-    }, SETTINGS_ANIMATION);
-
-  }
-
-  const firstInit = function () {
-
-    if (StorageCtrl.getUser() === '') {
-
-      UICtrl.sendMessage(`
-      <form class="begin-xtr-form">
-        <h2>Welcome to Tic Tac Toe</h2>
-        <p class="lead">Who is playing today?</p>
-        <div class="field">
-          <label for="begin-xtr-name">Your name</label>
-          <input type="text" required id="begin-xtr-name" placeholder="Your Name" maxlength="16" autocomplete="off">
-        </div>
-        <div class="field">
-          <label for="begin-xtr-xame">Opponent name</label>
-          <input type="text" required id="begin-xtr-xame" placeholder="Opponent Name" maxlength="16" autocomplete="off">
-        </div>
-        <button type="submit" class="btn btn-primary">Start playing</button>
-        <small>We use your browser's local storage to save your settings and stats. Starting the game grants that permission.</small>
-      </form>
-      `)
-
-      UICtrl.findElement('.begin-xtr-form')
-        .addEventListener('submit', (e) => {
-
-          e.preventDefault()
-
-          const name = UICtrl.findElement('#begin-xtr-name').value.trim()
-
-          const xname = UICtrl.findElement('#begin-xtr-xame').value.trim()
-
-          if (name.toLowerCase() === xname.toLowerCase() && name !== '') {
-
-            UICtrl.sendSmallMessage(`Player and opponent names must be different`, 2500)
-
-          } else if (name !== '' && xname !== '') {
-
-            const data = {
-              name: name,
-              xname: xname,
-              letter: 'X',
-              difficulty: 'easy',
-              numbPlay: 'one',
-              firstMove: 'XO',
-              statEasy: [0, 0, 0],
-              statMedium: [0, 0, 0],
-              statHard: [0, 0, 0],
-              statFriend: [0, 0, 0],
-              statTotal: [0, 0, 0],
-              extBoard: true,
-              calculateStats: function () {
-                this.statTotal.forEach((item, index) => {
-
-                  this.statTotal[index] = this.statEasy[index] +
-                    this.statMedium[index] + this.statHard[index] +
-                    this.statFriend[index]
-
-                })
-              },
-              board: {}
-            }
-
-            data.calculateStats()
-
-            StorageCtrl.setUser(data)
-
-            UICtrl.removeMessage()
-
-            loadInit()
-
-          } else {
-
-            UICtrl.sendSmallMessage(`Name fields can't be empty`, 2000)
-
-          }
-
-        })
-    }
+    }, Sketch.still() ? 0 : 200)
 
   }
 
-  const loadInit = function () {
+  // A name takes effect as it is typed. An empty one goes back to a default.
+  const nameField = function (input, dataName, fallback) {
 
-    if (StorageCtrl.getUser() !== '') {
+    input.addEventListener('input', () => {
 
-      fillAllSettings()
+      const value = input.value.trim()
+
+      if (value === '') { return }
+
+      UserCtrl.setData(dataName, value)
+
+      BoardCtrl.refresh()
+
+    })
+
+    input.addEventListener('change', () => {
+
+      if (input.value.trim() === '') {
+
+        UserCtrl.setData(dataName, fallback())
+
+        BoardCtrl.refresh()
+
+      }
+
+      input.value = UserCtrl.getData(dataName)
+
+    })
+
+  }
+
+  const loadEventListeners = function () {
+
+    UIVars.settingsOpen.addEventListener('click', openSettings)
+
+    UIVars.settingsClose.addEventListener('click', closeSettings)
+
+    // A click on the dimmed page beside the drawer closes it
+    UIVars.settings.addEventListener('click', (e) => {
+
+      if (e.target === UIVars.settings) { closeSettings() }
+
+    })
+
+    // Escape closes with the same slide as the button
+    UIVars.settings.addEventListener('cancel', (e) => {
+
+      e.preventDefault()
+
+      closeSettings()
+
+    })
+
+    UIVars.opponent.addEventListener('change', (e) => {
+
+      chooseOpponent(e.target.value)
+
+    })
+
+    UIVars.settLetter.addEventListener('change', (e) => {
+
+      UserCtrl.setData('letter', e.target.value)
+
+      BoardCtrl.newGame(true)
+
+    })
+
+    UIVars.settFirst.addEventListener('change', (e) => {
+
+      UserCtrl.setData('first move', e.target.value)
+
+      BoardCtrl.newGame(true)
+
+    })
+
+    nameField(UIVars.settName, 'name', () => 'You')
+
+    nameField(UIVars.settXname, 'xname',
+      () => UserCtrl.getData('numb players') === 'two' ? 'Friend' : 'Computer')
+
+    UIVars.statsReset.addEventListener('click', () => {
+
+      const names = STAT_ROWS.slice(0, 4)
+
+      const before = names.map(name => UserCtrl.getData(name))
+
+      if (before.every(stats => stats.every(n => n === 0))) {
+
+        UICtrl.showToast('Nothing to reset yet', 2500)
+
+        return
+
+      }
+
+      names.forEach(name => UserCtrl.setData(name, [0, 0, 0]))
 
       fillAllStats()
 
-      BoardCtrl.startBoard()
-    }
+      UICtrl.showToast('Statistics reset', 8000, {
+        label: 'Undo',
+        run: () => {
+
+          // Put the old numbers back, keeping any game finished since
+          names.forEach((name, i) => {
+
+            const since = UserCtrl.getData(name)
+
+            UserCtrl.setData(name, before[i].map((n, column) => n + since[column]))
+
+          })
+
+          fillAllStats()
+
+        }
+      })
+
+    })
+
+    UIVars.soundToggle.addEventListener('click', () => {
+
+      UserCtrl.setData('sound', UserCtrl.getData('sound') === false)
+
+      showSound()
+
+      // Proof that it is back on
+      if (Sound.isEnabled()) { Sound.scratch(0.18) }
+
+    })
+
+    UIVars.themeToggle.addEventListener('click', () => {
+
+      const theme = UIVars.html.dataset.theme === 'paper' ? 'board' : 'paper'
+
+      UIVars.html.dataset.theme = theme
+
+      UserCtrl.setData('theme', theme)
+
+      DrawCtrl.setTheme()
+
+      showTheme()
+
+    })
+
+    window.addEventListener('resize', fitRings)
+
+    // The handwriting font changes the size of every label when it arrives
+    if (document.fonts && document.fonts.ready) { document.fonts.ready.then(fitRings) }
 
   }
-
-
-  // Other Functions
-  const fillAllSettings = function () {
-
-    const name = UICtrl.UIVars.settName
-
-    const xname = UICtrl.UIVars.settXname
-
-    let playerLetter = Array.from(UICtrl.UIVars.settLetter.children)
-
-    let gameDiff = Array.from(UICtrl.UIVars.settDifficulty.children)
-
-    let playersNumber = Array.from(UICtrl.UIVars.settNumbOPlay.children)
-
-    let firstMove = Array.from(UICtrl.UIVars.settFirstMove.children)
-
-
-    name.value = UserCtrl.getData('name')
-
-    xname.value = UserCtrl.getData('xname')
-
-    playerLetter = playerLetter.map(item => item.lastElementChild)
-
-    gameDiff = gameDiff.map(item => item.lastElementChild)
-
-    playersNumber = playersNumber.map(item => item.lastElementChild)
-
-    firstMove = firstMove.map(item => item.lastElementChild)
-
-
-    playerLetter.forEach(item => {
-
-      if (item.id.split('-')[1] === UserCtrl.getData('letter')) {
-
-        item.checked = true
-
-      }
-
-    })
-
-    gameDiff.forEach(item => {
-
-      if (item.id.split('-')[1] === UserCtrl.getData('difficulty')) {
-
-        item.checked = true
-
-      }
-
-    })
-
-    playersNumber.forEach(item => {
-
-      if (item.id.split('-')[1] === UserCtrl.getData('numb players')) {
-
-        item.checked = true
-
-      }
-
-    })
-
-    firstMove.forEach(item => {
-
-      if (item.id.split('-')[1] === UserCtrl.getData('first move')) {
-
-        item.checked = true
-
-      }
-
-    })
-
-  }
-
-  const fillAllStats = function () {
-
-    const statsTable = Array.from(UICtrl.UIVars.statsTable.children)
-
-    statsTable[0].children[1].innerText = UserCtrl.getData('name')
-
-    statsTable[0].children[2].innerText = UserCtrl.getData('xname')
-
-    statsTable[0].children[3].innerText = 'Draws'
-
-    Array.from(statsTable[1].children).forEach((item, index) => {
-
-      if (index === 0) {
-
-        item.innerHTML = 'Easy'
-
-      } else {
-
-        item.innerHTML = UserCtrl.getData('stat easy')[index - 1]
-
-      }
-
-    })
-
-    Array.from(statsTable[2].children).forEach((item, index) => {
-
-      if (index === 0) {
-
-        item.innerHTML = 'Medium'
-
-      } else {
-
-        item.innerHTML = UserCtrl.getData('stat medium')[index - 1]
-
-      }
-
-    })
-
-    Array.from(statsTable[3].children).forEach((item, index) => {
-
-      if (index === 0) {
-
-        item.innerHTML = 'Hard'
-
-      } else {
-
-        item.innerHTML = UserCtrl.getData('stat hard')[index - 1]
-
-      }
-
-    })
-
-    Array.from(statsTable[4].children).forEach((item, index) => {
-
-      if (index === 0) {
-
-        item.innerHTML = 'Friend'
-
-      } else {
-
-        item.innerHTML = UserCtrl.getData('stat friend')[index - 1]
-
-      }
-
-    })
-
-    Array.from(statsTable[5].children).forEach((item, index) => {
-
-      if (index === 0) {
-
-        item.innerHTML = 'Total'
-
-      } else {
-
-        item.innerHTML = UserCtrl.getData('stat total')[index - 1]
-
-      }
-
-    })
-
-  }
-
 
   return {
+
     init: () => {
+
+      UserCtrl.ensureProfile()
+
+      DrawCtrl.init(BoardCtrl.startsEmpty())
+
+      showSound()
+
+      showTheme()
+
+      fillAllSettings()
+
+      fitRings()
 
       loadEventListeners()
 
-      firstInit()
+      BoardCtrl.startBoard()
 
-      loadInit()
+    },
 
+    chooseOpponent: (value) => chooseOpponent(value),
 
-    }
+    showStats: () => fillAllStats(),
+
   }
 })
   (UICtrl, BoardCtrl, StorageCtrl, UserCtrl)
